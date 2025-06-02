@@ -1,23 +1,30 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, CalendarDays, Building2, Menu, X, Clock } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Building2, Menu, X, Clock, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { BlockList } from './components/BlockList';
 import { ReservationCalendar } from './components/ReservationCalendar';
 import { ReservationList } from './components/ReservationList';
+import { Auth } from './components/Auth';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 type View = 'calendar' | 'list' | 'manage' | 'new-reservation';
 
-function App() {
+function AppContent() {
+  const { user, userRole, signOut } = useAuth();
   const [currentView, setCurrentView] = useState<View>('calendar');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+  if (!user) {
+    return <Auth />;
+  }
+
   const menuItems = [
-    { id: 'calendar', label: 'Visualizar Calendário', icon: CalendarDays },
-    { id: 'new-reservation', label: 'Novo Agendamento', icon: Clock },
-    { id: 'list', label: 'Lista de Agendamentos', icon: LayoutDashboard },
-    { id: 'manage', label: 'Gerenciar Blocos e Salas', icon: Building2 },
-  ];
+    { id: 'calendar', label: 'Visualizar Calendário', icon: CalendarDays, roles: ['admin', 'monitor'] },
+    { id: 'new-reservation', label: 'Novo Agendamento', icon: Clock, roles: ['admin', 'monitor'] },
+    { id: 'list', label: 'Lista de Agendamentos', icon: LayoutDashboard, roles: ['admin', 'monitor'] },
+    { id: 'manage', label: 'Gerenciar Blocos e Salas', icon: Building2, roles: ['admin'] },
+  ].filter(item => item.roles.includes(userRole!));
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -68,6 +75,16 @@ function App() {
                     </motion.button>
                   );
                 })}
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={signOut}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-red-600 hover:bg-red-50 mt-4"
+                >
+                  <LogOut className="w-5 h-5" />
+                  Sair
+                </motion.button>
               </nav>
             </div>
           </motion.aside>
@@ -91,7 +108,7 @@ function App() {
             {currentView === 'calendar' && <ReservationCalendar viewMode="calendar" />}
             {currentView === 'new-reservation' && <ReservationCalendar viewMode="form" />}
             {currentView === 'list' && <ReservationList />}
-            {currentView === 'manage' && <BlockList />}
+            {currentView === 'manage' && userRole === 'admin' && <BlockList />}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -108,6 +125,14 @@ function App() {
         }}
       />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 
