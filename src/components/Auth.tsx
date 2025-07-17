@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { LogIn } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -14,31 +15,10 @@ export const Auth = () => {
     setError(null);
 
     try {
-      if (!navigator.onLine) {
-        throw new Error('Sem conexão com a internet. Por favor, verifique sua conexão e tente novamente.');
-      }
-
-      const { error: signInError, data } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password.trim(),
-      });
-
-      if (signInError) {
-        if (signInError.message === 'Invalid login credentials') {
-          throw new Error('Email ou senha incorretos');
-        } else if (signInError.message.includes('Failed to fetch')) {
-          throw new Error('Erro de conexão com o servidor. Por favor, tente novamente em alguns instantes.');
-        }
-        throw signInError;
-      }
-
-      if (!data.user) {
-        throw new Error('Erro ao fazer login. Por favor, tente novamente.');
-      }
+      await login(email.trim(), password.trim());
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Ocorreu um erro ao fazer login';
       setError(errorMessage);
-      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
@@ -104,11 +84,11 @@ export const Auth = () => {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between items-center p-2 bg-white rounded border border-gray-200">
                 <span className="font-medium text-gray-600">Admin:</span>
-                <code className="bg-gray-100 px-2 py-1 rounded">admin@example.com / admin123</code>
+                <code className="bg-gray-100 px-2 py-1 rounded">admin@pragma.com / admin123</code>
               </div>
               <div className="flex justify-between items-center p-2 bg-white rounded border border-gray-200">
-                <span className="font-medium text-gray-600">Monitor:</span>
-                <code className="bg-gray-100 px-2 py-1 rounded">monitor@example.com / monitor123</code>
+                <span className="font-medium text-gray-600">Usuário:</span>
+                <code className="bg-gray-100 px-2 py-1 rounded">user@pragma.com / user123</code>
               </div>
             </div>
           </div>

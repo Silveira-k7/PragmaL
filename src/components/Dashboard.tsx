@@ -1,25 +1,27 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, CalendarDays, Building2, Menu, X, Clock, LogOut } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Building2, Menu, X, Clock, LogOut, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { BlockList } from './BlockList';
 import { ReservationCalendar } from './ReservationCalendar';
 import { ReservationList } from './ReservationList';
+import { UserManagement } from './UserManagement';
 
-type View = 'calendar' | 'list' | 'manage' | 'new-reservation';
+type View = 'calendar' | 'list' | 'manage' | 'new-reservation' | 'users';
 
 export const Dashboard = () => {
   const [currentView, setCurrentView] = useState<View>('calendar');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const { userRole, signOut } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
 
   const menuItems = [
-    { id: 'calendar', label: 'Visualizar Calendário', icon: CalendarDays, roles: ['admin', 'monitor'] },
+    { id: 'calendar', label: 'Visualizar Calendário', icon: CalendarDays, roles: ['admin', 'user'] },
     { id: 'new-reservation', label: 'Novo Agendamento', icon: Clock, roles: ['admin'] },
-    { id: 'list', label: 'Lista de Agendamentos', icon: LayoutDashboard, roles: ['admin', 'monitor'] },
+    { id: 'list', label: 'Lista de Agendamentos', icon: LayoutDashboard, roles: ['admin', 'user'] },
     { id: 'manage', label: 'Gerenciar Blocos e Salas', icon: Building2, roles: ['admin'] },
-  ].filter(item => item.roles.includes(userRole || ''));
+    { id: 'users', label: 'Gerenciar Usuários', icon: Users, roles: ['admin'] },
+  ].filter(item => item.roles.includes(user?.role || ''));
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -43,7 +45,17 @@ export const Dashboard = () => {
             <div className="p-6">
               <h1 className="text-2xl font-bold text-slate-900 mb-1">PRAGMA</h1>
               <p className="text-sm text-slate-500 mb-2">Programa de Reservas para</p>
-              <p className="text-sm text-slate-500 mb-8">Gestão Modular de Ambientes</p>
+              <p className="text-sm text-slate-500 mb-4">Gestão Modular de Ambientes</p>
+              
+              <div className="bg-slate-50 rounded-lg p-3 mb-6">
+                <p className="text-sm font-medium text-slate-700">{user?.full_name}</p>
+                <p className="text-xs text-slate-500">{user?.email}</p>
+                <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium mt-1 ${
+                  isAdmin() ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                }`}>
+                  {isAdmin() ? 'Administrador' : 'Usuário'}
+                </span>
+              </div>
 
               <nav className="space-y-2">
                 {menuItems.map((item) => {
@@ -72,7 +84,7 @@ export const Dashboard = () => {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={signOut}
+                  onClick={logout}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-red-600 hover:bg-red-50 mt-4"
                 >
                   <LogOut className="w-5 h-5" />
@@ -101,6 +113,7 @@ export const Dashboard = () => {
             {currentView === 'new-reservation' && <ReservationCalendar viewMode="form" />}
             {currentView === 'list' && <ReservationList />}
             {currentView === 'manage' && <BlockList />}
+            {currentView === 'users' && <UserManagement />}
           </motion.div>
         </AnimatePresence>
       </main>
