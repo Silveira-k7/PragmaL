@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, CalendarDays, Building2, Menu, X, Clock, LogOut, Users } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Building2, Menu, X, Clock, LogOut, Users, Brain } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,8 +7,9 @@ import { BlockList } from './BlockList';
 import { ReservationCalendar } from './ReservationCalendar';
 import { ReservationList } from './ReservationList';
 import { UserManagement } from './UserManagement';
+import { Analytics } from './Analytics';
 
-type View = 'calendar' | 'list' | 'manage' | 'new-reservation' | 'users';
+type View = 'calendar' | 'list' | 'manage' | 'new-reservation' | 'users' | 'analytics';
 
 export const Dashboard = () => {
   const [currentView, setCurrentView] = useState<View>('calendar');
@@ -21,6 +22,7 @@ export const Dashboard = () => {
     { id: 'list', label: 'Lista de Agendamentos', icon: LayoutDashboard, roles: ['admin', 'user'] },
     { id: 'manage', label: 'Gerenciar Blocos e Salas', icon: Building2, roles: ['admin'] },
     { id: 'users', label: 'Gerenciar Usuários', icon: Users, roles: ['admin'] },
+    { id: 'analytics', label: 'Analytics IA', icon: Brain, roles: ['admin'] },
   ].filter(item => item.roles.includes(user?.role || ''));
 
   return (
@@ -114,6 +116,7 @@ export const Dashboard = () => {
             {currentView === 'list' && <ReservationList />}
             {currentView === 'manage' && <BlockList />}
             {currentView === 'users' && <UserManagement />}
+            {currentView === 'analytics' && <Analytics />}
           </motion.div>
         </AnimatePresence>
       </main>
