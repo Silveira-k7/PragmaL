@@ -3,6 +3,7 @@ import { LayoutDashboard, CalendarDays, Building2, Menu, X, Clock, LogOut, Users
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
+import { useStore } from '../store/useStore';
 import { BlockList } from './BlockList';
 import { ReservationCalendar } from './ReservationCalendar';
 import { ReservationList } from './ReservationList';
@@ -15,6 +16,12 @@ export const Dashboard = () => {
   const [currentView, setCurrentView] = useState<View>('calendar');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { user, logout, isAdmin } = useAuth();
+  const { initializeSampleData } = useStore();
+
+  // Initialize sample data on component mount
+  React.useEffect(() => {
+    initializeSampleData();
+  }, [initializeSampleData]);
 
   const menuItems = [
     { id: 'calendar', label: 'Visualizar Calendário', icon: CalendarDays, roles: ['admin', 'user'] },
