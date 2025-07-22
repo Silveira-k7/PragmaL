@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, CalendarDays, Building2, Menu, X, Clock, LogOut, Users, Brain } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Building2, Menu, X, Clock, LogOut, Users, Brain, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,8 +9,9 @@ import { ReservationCalendar } from './ReservationCalendar';
 import { ReservationList } from './ReservationList';
 import { UserManagement } from './UserManagement';
 import { Analytics } from './Analytics';
+import { AISchedulingChat } from './AISchedulingChat';
 
-type View = 'calendar' | 'list' | 'manage' | 'new-reservation' | 'users' | 'analytics';
+type View = 'calendar' | 'list' | 'manage' | 'new-reservation' | 'users' | 'analytics' | 'ai-chat';
 
 export const Dashboard = () => {
   const [currentView, setCurrentView] = useState<View>('calendar');
@@ -25,6 +26,7 @@ export const Dashboard = () => {
 
   const menuItems = [
     { id: 'calendar', label: 'Visualizar Calendário', icon: CalendarDays, roles: ['admin', 'user'] },
+    { id: 'ai-chat', label: 'IA Agendamento Rápido', icon: MessageSquare, roles: ['admin'] },
     { id: 'new-reservation', label: 'Novo Agendamento', icon: Clock, roles: ['admin'] },
     { id: 'list', label: 'Lista de Agendamentos', icon: LayoutDashboard, roles: ['admin', 'user'] },
     { id: 'manage', label: 'Gerenciar Blocos e Salas', icon: Building2, roles: ['admin'] },
@@ -124,6 +126,7 @@ export const Dashboard = () => {
             {currentView === 'manage' && <BlockList />}
             {currentView === 'users' && <UserManagement />}
             {currentView === 'analytics' && <Analytics />}
+            {currentView === 'ai-chat' && <AISchedulingChat />}
           </motion.div>
         </AnimatePresence>
       </main>
