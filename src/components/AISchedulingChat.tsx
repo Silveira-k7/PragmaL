@@ -77,7 +77,6 @@ export const AISchedulingChat = () => {
     const lowerMessage = message.toLowerCase();
     let response = '';
     let newSchedulingData = { ...schedulingData };
-    let shouldSchedule = false;
 
     // Extrair informações da mensagem
     if (!newSchedulingData.professor) {
@@ -180,7 +179,7 @@ export const AISchedulingChat = () => {
                       newSchedulingData.horario && 
                       newSchedulingData.data;
 
-    if (hasAllInfo && !shouldSchedule) {
+    if (hasAllInfo && !lowerMessage.includes('confirmar') && !lowerMessage.includes('cancelar')) {
       response += '\n🎯 Tenho todas as informações necessárias!\n\n';
       response += `📋 **Resumo do Agendamento:**\n`;
       response += `👨‍🏫 Professor: ${newSchedulingData.professor}\n`;
@@ -191,27 +190,7 @@ export const AISchedulingChat = () => {
       response += `📊 Duração: ${newSchedulingData.semanas || 16} semanas\n\n`;
       response += '✨ Digite "confirmar" para criar os agendamentos ou "cancelar" para recomeçar!';
     } else if (lowerMessage.includes('confirmar') && hasAllInfo) {
-      shouldSchedule = true;
-    } else if (lowerMessage.includes('cancelar')) {
-      newSchedulingData = {};
-      response = '🔄 Agendamento cancelado! Vamos começar novamente. Me diga as informações para o novo agendamento.';
-    } else {
-      // Solicitar informações faltantes
-      const missing = [];
-      if (!newSchedulingData.professor) missing.push('👨‍🏫 Nome do professor');
-      if (!newSchedulingData.materia) missing.push('📚 Matéria/disciplina');
-      if (!newSchedulingData.bloco) missing.push('🏢 Bloco (C, H15, H06, H03)');
-      if (!newSchedulingData.horario) missing.push('⏰ Horário');
-      if (!newSchedulingData.data) missing.push('📅 Data de início ou dia da semana');
-      
-      if (missing.length > 0) {
-        response += '\n🤔 Ainda preciso de algumas informações:\n\n';
-        response += missing.join('\n') + '\n\n';
-        response += '💡 Exemplo: "Prof. Ana Silva, Cálculo I, Bloco C, 08:00, toda segunda-feira por 16 semanas"';
-      }
-    }
-
-    if (shouldSchedule) {
+      // Executar agendamento
       try {
         // Encontrar sala disponível no bloco
         const blockRooms = rooms.filter(r => r.block_id === newSchedulingData.bloco);
@@ -257,8 +236,26 @@ export const AISchedulingChat = () => {
           toast.success(`${weeks} aulas agendadas com sucesso!`);
         }
       } catch (error) {
+        console.error('Erro ao criar agendamento:', error);
         response = '❌ Erro ao criar agendamento. Tente novamente.';
         toast.error('Erro ao criar agendamento');
+      }
+    } else if (lowerMessage.includes('cancelar')) {
+      newSchedulingData = {};
+      response = '🔄 Agendamento cancelado! Vamos começar novamente. Me diga as informações para o novo agendamento.';
+    } else {
+      // Solicitar informações faltantes
+      const missing = [];
+      if (!newSchedulingData.professor) missing.push('👨‍🏫 Nome do professor');
+      if (!newSchedulingData.materia) missing.push('📚 Matéria/disciplina');
+      if (!newSchedulingData.bloco) missing.push('🏢 Bloco (C, H15, H06, H03)');
+      if (!newSchedulingData.horario) missing.push('⏰ Horário');
+      if (!newSchedulingData.data) missing.push('📅 Data de início ou dia da semana');
+      
+      if (missing.length > 0) {
+        response += '\n🤔 Ainda preciso de algumas informações:\n\n';
+        response += missing.join('\n') + '\n\n';
+        response += '💡 Exemplo: "Prof. Ana Silva, Cálculo I, Bloco C, 08:00, toda segunda-feira por 16 semanas"';
       }
     }
 

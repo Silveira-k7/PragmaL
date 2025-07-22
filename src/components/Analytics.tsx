@@ -32,7 +32,7 @@ interface RoomStats {
 type PeriodType = 'week' | 'month' | 'year';
 
 export const Analytics = () => {
-  const { blocks, rooms, reservations } = useStore();
+  const { blocks, rooms, getAllReservations } = useStore();
   const { isAdmin } = useAuth();
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('month');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -48,10 +48,13 @@ export const Analytics = () => {
   useEffect(() => {
     generateAnalytics();
     generateAIInsights();
-  }, [selectedPeriod, selectedYear, reservations]);
+  }, [selectedPeriod, selectedYear]);
 
   const generateAnalytics = () => {
     setLoading(true);
+    
+    // Obter todas as reservas
+    const allReservations = getAllReservations();
     
     try {
       let periods: Date[] = [];
@@ -94,7 +97,7 @@ export const Analytics = () => {
             break;
         }
 
-        const periodReservations = reservations.filter(res => {
+        const periodReservations = allReservations.filter(res => {
           const resDate = new Date(res.start_time);
           return resDate >= start && resDate <= end;
         });
@@ -119,7 +122,7 @@ export const Analytics = () => {
 
       // Estatísticas por professor
       const teacherMap = new Map<string, { reservations: number; hours: number }>();
-      reservations.forEach(res => {
+      allReservations.forEach(res => {
         const duration = (new Date(res.end_time).getTime() - new Date(res.start_time).getTime()) / (1000 * 60 * 60);
         const current = teacherMap.get(res.teacher_name) || { reservations: 0, hours: 0 };
         teacherMap.set(res.teacher_name, {
@@ -141,7 +144,7 @@ export const Analytics = () => {
 
       // Estatísticas por sala
       const roomMap = new Map<string, number>();
-      reservations.forEach(res => {
+      allReservations.forEach(res => {
         const current = roomMap.get(res.room_id) || 0;
         roomMap.set(res.room_id, current + 1);
       });
@@ -152,7 +155,7 @@ export const Analytics = () => {
         return {
           name: `${block?.name} - ${room.name}`,
           reservations: reservationCount,
-          utilization: Math.round((reservationCount / Math.max(reservations.length, 1)) * 100)
+          utilization: Math.round((reservationCount / Math.max(allReservations.length, 1)) * 100)
         };
       }).sort((a, b) => b.reservations - a.reservations);
 
@@ -164,15 +167,16 @@ export const Analytics = () => {
 
   const generateAIInsights = () => {
     const insights: string[] = [];
+    const allReservations = getAllReservations();
     
-    if (reservations.length === 0) {
+    if (allReservations.length === 0) {
       insights.push("📊 Nenhum agendamento encontrado para análise.");
       setAiInsights(insights);
       return;
     }
 
     // Análise de tendências
-    const totalReservations = reservations.length;
+    const totalReservations = allReservations.length;
     const avgPerMonth = totalReservations / 12;
     
     if (avgPerMonth > 50) {
@@ -183,7 +187,7 @@ export const Analytics = () => {
 
     // Análise de horários
     const hourMap = new Map<number, number>();
-    reservations.forEach(res => {
+    allReservations.forEach(res => {
       const hour = new Date(res.start_time).getHours();
       hourMap.set(hour, (hourMap.get(hour) || 0) + 1);
     });
@@ -194,14 +198,14 @@ export const Analytics = () => {
     }
 
     // Análise de professores
-    const teacherCount = new Set(reservations.map(res => res.teacher_name)).size;
+    const teacherCount = new Set(allReservations.map(res => res.teacher_name)).size;
     if (teacherCount > 20) {
       insights.push("👥 Grande diversidade de professores utilizando o sistema.");
     }
 
     // Análise de salas
     const roomUsage = new Map<string, number>();
-    reservations.forEach(res => {
+    allReservations.forEach(res => {
       roomUsage.set(res.room_id, (roomUsage.get(res.room_id) || 0) + 1);
     });
 
@@ -211,10 +215,10 @@ export const Analytics = () => {
     }
 
     // Análise de eficiência
-    const avgDuration = reservations.reduce((acc, res) => {
+    const avgDuration = allReservations.reduce((acc, res) => {
       const duration = (new Date(res.end_time).getTime() - new Date(res.start_time).getTime()) / (1000 * 60 * 60);
       return acc + duration;
-    }, 0) / reservations.length;
+    }, 0) / allReservations.length;
 
     if (avgDuration > 2) {
       insights.push("⏱️ Duração média das aulas é alta. Boa utilização do tempo disponível.");
@@ -453,11 +457,11 @@ export const Analytics = () => {
         <h3 className="text-lg font-semibold mb-4">Resumo Estatístico</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center p-4 bg-blue-50 rounded-lg">
-            <p className="text-2xl font-bold text-blue-600">{reservations.length}</p>
+            <p className="text-2xl font-bold text-blue-600">{getAllReservations().length}</p>
             <p className="text-sm text-slate-600">Total de Agendamentos</p>
           </div>
           <div className="text-center p-4 bg-green-50 rounded-lg">
-            <p className="text-2xl font-bold text-green-600">{new Set(reservations.map(r => r.teacher_name)).size}</p>
+            <p className="text-2xl font-bold text-green-600">{new Set(getAllReservations().map(r => r.teacher_name)).size}</p>
             <p className="text-sm text-slate-600">Professores Únicos</p>
           </div>
           <div className="text-center p-4 bg-orange-50 rounded-lg">

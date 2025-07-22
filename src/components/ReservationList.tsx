@@ -5,7 +5,7 @@ import { Search, Filter, Trash2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
 export const ReservationList = () => {
-  const { rooms, blocks, reservations, deleteReservation } = useStore();
+  const { rooms, blocks, getAllReservations, deleteReservation } = useStore();
   const [filteredReservations, setFilteredReservations] = useState(reservations);
   const [filters, setFilters] = useState({
     search: '',
@@ -16,7 +16,8 @@ export const ReservationList = () => {
   });
 
   useEffect(() => {
-    let filtered = [...reservations];
+    const allReservations = getAllReservations();
+    let filtered = [...allReservations];
 
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
@@ -51,7 +52,7 @@ export const ReservationList = () => {
     }
 
     setFilteredReservations(filtered);
-  }, [filters, reservations, rooms]);
+  }, [filters, rooms, getAllReservations]);
 
   const handleDeleteReservation = async (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir este agendamento?')) {

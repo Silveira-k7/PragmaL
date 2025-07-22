@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { Block, Room, Reservation } from '../types';
-import { startOfDay, endOfDay, addWeeks } from 'date-fns';
+import { startOfDay, endOfDay, addWeeks, startOfYear, endOfYear } from 'date-fns';
 
 interface State {
   blocks: Block[];
   rooms: Room[];
   reservations: Reservation[];
+  allReservations: Reservation[]; // Todas as reservas para analytics
   selectedDate: Date;
   loading: boolean;
   error: string | null;
@@ -17,6 +18,7 @@ interface State {
   deleteBlock: (id: string) => void;
   deleteRoom: (id: string) => void;
   deleteReservation: (id: string) => void;
+  getAllReservations: () => Reservation[];
   clearError: () => void;
   initializeSampleData: () => void;
 }
@@ -175,6 +177,7 @@ export const useStore = create<State>((set, get) => ({
   blocks: storedBlocks,
   rooms: storedRooms,
   reservations: [],
+  allReservations: storedReservations,
   selectedDate: new Date(),
   loading: false,
   error: null,
@@ -184,7 +187,8 @@ export const useStore = create<State>((set, get) => ({
   initializeSampleData: () => {
     set({ 
       blocks: [...storedBlocks],
-      rooms: [...storedRooms]
+      rooms: [...storedRooms],
+      allReservations: [...storedReservations]
     });
     get().setSelectedDate(get().selectedDate);
   },
@@ -227,6 +231,7 @@ export const useStore = create<State>((set, get) => ({
       ...reservation
     };
     storedReservations.push(newReservation);
+    set({ allReservations: [...storedReservations] });
     get().setSelectedDate(get().selectedDate);
   },
 
@@ -244,6 +249,7 @@ export const useStore = create<State>((set, get) => ({
       
       storedReservations.push(reservation);
     }
+    set({ allReservations: [...storedReservations] });
     get().setSelectedDate(get().selectedDate);
   },
 
@@ -263,6 +269,11 @@ export const useStore = create<State>((set, get) => ({
 
   deleteReservation: (id) => {
     storedReservations = storedReservations.filter(res => res.id !== id);
+    set({ allReservations: [...storedReservations] });
     get().setSelectedDate(get().selectedDate);
+  },
+
+  getAllReservations: () => {
+    return storedReservations;
   }
 }));
