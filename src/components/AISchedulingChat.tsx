@@ -18,10 +18,12 @@ interface SchedulingData {
   professor?: string;
   materia?: string;
   bloco?: string;
+  sala?: string;
   horario?: string;
   data?: string;
   semanas?: number;
   duracao?: string;
+  diaSemana?: string;
 }
 
 export const AISchedulingChat = () => {
@@ -29,7 +31,7 @@ export const AISchedulingChat = () => {
     {
       id: '1',
       type: 'ai',
-      content: '🤖 Olá! Sou a IA do PRAGMA. Posso ajudar você a agendar aulas rapidamente! \n\nApenas me diga:\n• Nome do professor\n• Matéria/disciplina\n• Bloco desejado (C, H15, H06, H03)\n• Horário preferido\n• Data de início\n• Quantas semanas no semestre\n\nExemplo: "Quero agendar aulas do Prof. João de Cálculo no Bloco C às 08:00 toda segunda-feira por 16 semanas"',
+      content: '👋 Olá! Eu sou o **Luciano**, mas pode me chamar de **LU**! Sou a IA do PRAGMA e estou aqui para facilitar seus agendamentos!\n\n🎯 **Como posso ajudar:**\nMe diga as informações da aula e eu cuido do resto:\n\n📋 **Informações necessárias:**\n• 👨‍🏫 Nome do professor\n• 📚 Matéria/disciplina\n• 🏢 Bloco (C, H15, H06, H03)\n• 🚪 Sala (opcional - posso sugerir uma disponível)\n• ⏰ Horário (ex: 08:00, 14:00)\n• 📅 Dia da semana (segunda, terça, etc.)\n• 📊 Quantas semanas (padrão: 16)\n\n💡 **Exemplo:**\n"Prof. João, Cálculo I, Bloco C, toda segunda às 08:00 por 16 semanas"\n\nVamos começar? 🚀',
       timestamp: new Date()
     }
   ]);
@@ -39,7 +41,7 @@ export const AISchedulingChat = () => {
   const [schedulingData, setSchedulingData] = useState<SchedulingData>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  const { blocks, rooms, reservations, addSemesterReservations, addReservation } = useStore();
+  const { blocks, rooms, addSemesterReservations, addReservation } = useStore();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -68,209 +70,296 @@ export const AISchedulingChat = () => {
     { start: '21:05', end: '21:50' }
   ];
 
+  const diasSemana = {
+    'segunda': 1, 'segunda-feira': 1, 'seg': 1,
+    'terça': 2, 'terça-feira': 2, 'ter': 2, 'terca': 2,
+    'quarta': 3, 'quarta-feira': 3, 'qua': 3,
+    'quinta': 4, 'quinta-feira': 4, 'qui': 4,
+    'sexta': 5, 'sexta-feira': 5, 'sex': 5
+  };
+
+  const findBestTimeSlot = (timeInput: string) => {
+    const hour = parseInt(timeInput.split(':')[0]);
+    return timeSlots.find(slot => {
+      const slotHour = parseInt(slot.start.split(':')[0]);
+      return Math.abs(slotHour - hour) <= 1;
+    }) || timeSlots[0];
+  };
+
+  const getNextDateForWeekday = (weekday: number) => {
+    const today = new Date();
+    const daysUntilNext = (weekday - today.getDay() + 7) % 7 || 7;
+    const nextDate = new Date(today);
+    nextDate.setDate(today.getDate() + daysUntilNext);
+    return nextDate;
+  };
+
   const processMessage = async (message: string) => {
     setIsProcessing(true);
     
-    // Simular processamento da IA
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const lowerMessage = message.toLowerCase();
-    let response = '';
-    let newSchedulingData = { ...schedulingData };
-
-    // Extrair informações da mensagem
-    if (!newSchedulingData.professor) {
-      const profMatch = message.match(/prof\.?\s*([a-záêçõ\s]+)/i);
-      if (profMatch) {
-        newSchedulingData.professor = `Prof. ${profMatch[1].trim()}`;
-        response += `✅ Professor identificado: ${newSchedulingData.professor}\n`;
-      }
-    }
-
-    if (!newSchedulingData.materia) {
-      const materias = [
-        'cálculo', 'álgebra', 'física', 'química', 'programação', 'estruturas de dados',
-        'banco de dados', 'engenharia de software', 'redes', 'inteligência artificial',
-        'sistemas operacionais', 'estatística', 'metodologia', 'gestão', 'marketing',
-        'contabilidade', 'administração', 'direito', 'psicologia', 'logística'
-      ];
+    try {
+      // Simular processamento da IA
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      for (const materia of materias) {
-        if (lowerMessage.includes(materia)) {
-          newSchedulingData.materia = materia.charAt(0).toUpperCase() + materia.slice(1);
-          response += `✅ Matéria identificada: ${newSchedulingData.materia}\n`;
-          break;
+      const lowerMessage = message.toLowerCase();
+      let response = '';
+      let newSchedulingData = { ...schedulingData };
+
+      // Verificar se é confirmação ou cancelamento
+      if (lowerMessage.includes('confirmar') || lowerMessage.includes('sim') || lowerMessage.includes('ok')) {
+        const hasAllInfo = newSchedulingData.professor && 
+                          newSchedulingData.materia && 
+                          newSchedulingData.bloco && 
+                          newSchedulingData.horario && 
+                          newSchedulingData.data;
+
+        if (hasAllInfo) {
+          try {
+            // Encontrar sala disponível no bloco
+            const blockRooms = rooms.filter(r => r.block_id === newSchedulingData.bloco);
+            if (blockRooms.length === 0) {
+              response = '❌ **Ops!** Não encontrei salas disponíveis no bloco selecionado.\n\nVamos tentar outro bloco? 🤔';
+            } else {
+              // Usar sala específica ou primeira disponível
+              const selectedRoom = newSchedulingData.sala 
+                ? blockRooms.find(r => r.id === newSchedulingData.sala) || blockRooms[0]
+                : blockRooms[0];
+              
+              const startDate = new Date(newSchedulingData.data!);
+              const [startHour, startMinute] = newSchedulingData.horario!.split(':').map(Number);
+              const [endHour, endMinute] = newSchedulingData.duracao!.split(':').map(Number);
+              
+              startDate.setHours(startHour, startMinute, 0, 0);
+              const endDate = new Date(startDate);
+              endDate.setHours(endHour, endMinute, 0, 0);
+              
+              const reservation = {
+                room_id: selectedRoom.id,
+                teacher_name: newSchedulingData.professor!,
+                start_time: startDate.toISOString(),
+                end_time: endDate.toISOString(),
+                purpose: newSchedulingData.materia!
+              };
+              
+              const weeks = newSchedulingData.semanas || 16;
+              
+              console.log('🤖 LU: Criando agendamento:', reservation, 'por', weeks, 'semanas');
+              
+              await addSemesterReservations(reservation, weeks);
+              
+              const blockName = blocks.find(b => b.id === newSchedulingData.bloco)?.name;
+              
+              response = `🎉 **Perfeito! Agendamento criado com sucesso!**\n\n`;
+              response += `✅ **Resumo do que foi agendado:**\n`;
+              response += `👨‍🏫 **Professor:** ${newSchedulingData.professor}\n`;
+              response += `📚 **Matéria:** ${newSchedulingData.materia}\n`;
+              response += `🏢 **Local:** ${blockName} - ${selectedRoom.name}\n`;
+              response += `⏰ **Horário:** ${newSchedulingData.horario} - ${newSchedulingData.duracao}\n`;
+              response += `📅 **Início:** ${format(startDate, 'dd/MM/yyyy')}\n`;
+              response += `📊 **Total:** ${weeks} aulas agendadas\n\n`;
+              response += `🚀 **Pronto para o próximo agendamento!**\nMe diga o que mais precisa! 😊`;
+              
+              // Reset scheduling data
+              newSchedulingData = {};
+              
+              toast.success(`🎉 ${weeks} aulas agendadas por LU!`);
+            }
+          } catch (error) {
+            console.error('❌ Erro ao criar agendamento:', error);
+            response = '❌ **Oops!** Algo deu errado ao criar o agendamento.\n\nVamos tentar novamente? Digite as informações mais uma vez! 🔄';
+            toast.error('Erro ao criar agendamento');
+          }
+        } else {
+          response = '🤔 **Ainda faltam algumas informações!**\n\nPreciso de todos os dados antes de confirmar. Vamos completar? 📝';
         }
-      }
-    }
-
-    if (!newSchedulingData.bloco) {
-      const blocoMatch = message.match(/bloco\s*([ch]\d*|[ch]\d+)/i);
-      if (blocoMatch) {
-        const blocoName = blocoMatch[1].toUpperCase();
-        const foundBlock = blocks.find(b => b.name.toUpperCase().includes(blocoName));
-        if (foundBlock) {
-          newSchedulingData.bloco = foundBlock.id;
-          response += `✅ Bloco identificado: ${foundBlock.name}\n`;
-        }
-      }
-    }
-
-    if (!newSchedulingData.horario) {
-      const horarioMatch = message.match(/(\d{1,2}):?(\d{2})?/);
-      if (horarioMatch) {
-        const hour = horarioMatch[1].padStart(2, '0');
-        const minute = horarioMatch[2] || '00';
-        const timeString = `${hour}:${minute}`;
-        
-        // Encontrar o slot de tempo mais próximo
-        const matchingSlot = timeSlots.find(slot => 
-          slot.start.startsWith(hour) || slot.start === timeString
-        );
-        
-        if (matchingSlot) {
-          newSchedulingData.horario = matchingSlot.start;
-          newSchedulingData.duracao = matchingSlot.end;
-          response += `✅ Horário identificado: ${matchingSlot.start} - ${matchingSlot.end}\n`;
-        }
-      }
-    }
-
-    if (!newSchedulingData.semanas) {
-      const semanasMatch = message.match(/(\d+)\s*semanas?/i);
-      if (semanasMatch) {
-        newSchedulingData.semanas = parseInt(semanasMatch[1]);
-        response += `✅ Duração: ${newSchedulingData.semanas} semanas\n`;
-      }
-    }
-
-    if (!newSchedulingData.data) {
-      const dataMatch = message.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-      if (dataMatch) {
-        newSchedulingData.data = `${dataMatch[3]}-${dataMatch[2].padStart(2, '0')}-${dataMatch[1].padStart(2, '0')}`;
-        response += `✅ Data de início: ${dataMatch[1]}/${dataMatch[2]}/${dataMatch[3]}\n`;
+      } else if (lowerMessage.includes('cancelar') || lowerMessage.includes('não') || lowerMessage.includes('nao')) {
+        newSchedulingData = {};
+        response = '🔄 **Agendamento cancelado!**\n\nSem problemas! Vamos começar um novo agendamento quando quiser. Me diga as informações! 😊';
       } else {
-        // Detectar dias da semana
-        const diasSemana = {
-          'segunda': 1, 'terça': 2, 'quarta': 3, 'quinta': 4, 'sexta': 5,
-          'segunda-feira': 1, 'terça-feira': 2, 'quarta-feira': 3, 'quinta-feira': 4, 'sexta-feira': 5
-        };
+        // Extrair informações da mensagem
         
-        for (const [dia, numero] of Object.entries(diasSemana)) {
-          if (lowerMessage.includes(dia)) {
-            // Calcular próxima ocorrência do dia da semana
-            const hoje = new Date();
-            const diasParaProximo = (numero - hoje.getDay() + 7) % 7 || 7;
-            const proximaData = new Date(hoje);
-            proximaData.setDate(hoje.getDate() + diasParaProximo);
-            
-            newSchedulingData.data = format(proximaData, 'yyyy-MM-dd');
-            response += `✅ Data de início: ${format(proximaData, 'dd/MM/yyyy')} (próxima ${dia})\n`;
-            break;
+        // Professor
+        if (!newSchedulingData.professor) {
+          const profMatches = [
+            message.match(/prof\.?\s*([a-záêçõ\s]+?)(?:\s*,|\s*de|\s*-|\s*$)/i),
+            message.match(/professor\s+([a-záêçõ\s]+?)(?:\s*,|\s*de|\s*-|\s*$)/i),
+            message.match(/([a-záêçõ\s]+?)\s*(?:vai dar|dará|ensina)/i)
+          ];
+          
+          for (const match of profMatches) {
+            if (match) {
+              const profName = match[1].trim();
+              if (profName.length > 2) {
+                newSchedulingData.professor = profName.startsWith('Prof') ? profName : `Prof. ${profName}`;
+                response += `✅ **Professor identificado:** ${newSchedulingData.professor}\n`;
+                break;
+              }
+            }
+          }
+        }
+
+        // Matéria
+        if (!newSchedulingData.materia) {
+          const materias = [
+            'cálculo', 'álgebra', 'física', 'química', 'programação', 'estruturas de dados',
+            'banco de dados', 'engenharia de software', 'redes', 'inteligência artificial',
+            'sistemas operacionais', 'estatística', 'metodologia', 'gestão', 'marketing',
+            'contabilidade', 'administração', 'direito', 'psicologia', 'logística',
+            'matemática', 'português', 'inglês', 'história', 'geografia', 'biologia'
+          ];
+          
+          for (const materia of materias) {
+            if (lowerMessage.includes(materia)) {
+              newSchedulingData.materia = materia.charAt(0).toUpperCase() + materia.slice(1);
+              response += `✅ **Matéria identificada:** ${newSchedulingData.materia}\n`;
+              break;
+            }
+          }
+          
+          // Tentar extrair matéria de forma mais genérica
+          if (!newSchedulingData.materia) {
+            const materiaMatch = message.match(/(?:de|da|do)\s+([a-záêçõ\s]+?)(?:\s*,|\s*no|\s*em|\s*$)/i);
+            if (materiaMatch) {
+              const materia = materiaMatch[1].trim();
+              if (materia.length > 3 && !materia.includes('bloco')) {
+                newSchedulingData.materia = materia.charAt(0).toUpperCase() + materia.slice(1);
+                response += `✅ **Matéria identificada:** ${newSchedulingData.materia}\n`;
+              }
+            }
+          }
+        }
+
+        // Bloco
+        if (!newSchedulingData.bloco) {
+          const blocoMatches = [
+            message.match(/bloco\s*([ch]\d*)/i),
+            message.match(/\b([ch]\d+)\b/i),
+            message.match(/\b(h\d+)\b/i)
+          ];
+          
+          for (const match of blocoMatches) {
+            if (match) {
+              const blocoName = match[1].toUpperCase();
+              const foundBlock = blocks.find(b => 
+                b.name.toUpperCase().includes(blocoName) || 
+                b.name.toUpperCase() === blocoName
+              );
+              if (foundBlock) {
+                newSchedulingData.bloco = foundBlock.id;
+                response += `✅ **Bloco identificado:** ${foundBlock.name}\n`;
+                break;
+              }
+            }
+          }
+        }
+
+        // Horário
+        if (!newSchedulingData.horario) {
+          const horarioMatches = [
+            message.match(/(\d{1,2}):(\d{2})/),
+            message.match(/(\d{1,2})h(\d{2})?/),
+            message.match(/às?\s*(\d{1,2}):?(\d{2})?/i)
+          ];
+          
+          for (const match of horarioMatches) {
+            if (match) {
+              const hour = match[1].padStart(2, '0');
+              const minute = match[2] ? match[2].padStart(2, '0') : '00';
+              const timeString = `${hour}:${minute}`;
+              
+              const matchingSlot = findBestTimeSlot(timeString);
+              if (matchingSlot) {
+                newSchedulingData.horario = matchingSlot.start;
+                newSchedulingData.duracao = matchingSlot.end;
+                response += `✅ **Horário identificado:** ${matchingSlot.start} - ${matchingSlot.end}\n`;
+                break;
+              }
+            }
+          }
+        }
+
+        // Dia da semana e data
+        if (!newSchedulingData.data) {
+          for (const [dia, numero] of Object.entries(diasSemana)) {
+            if (lowerMessage.includes(dia)) {
+              const proximaData = getNextDateForWeekday(numero);
+              newSchedulingData.data = format(proximaData, 'yyyy-MM-dd');
+              newSchedulingData.diaSemana = dia;
+              response += `✅ **Data identificada:** ${format(proximaData, 'dd/MM/yyyy')} (próxima ${dia})\n`;
+              break;
+            }
+          }
+        }
+
+        // Semanas
+        if (!newSchedulingData.semanas) {
+          const semanasMatch = message.match(/(\d+)\s*semanas?/i);
+          if (semanasMatch) {
+            newSchedulingData.semanas = parseInt(semanasMatch[1]);
+            response += `✅ **Duração:** ${newSchedulingData.semanas} semanas\n`;
+          }
+        }
+
+        // Verificar se temos todas as informações necessárias
+        const hasAllInfo = newSchedulingData.professor && 
+                          newSchedulingData.materia && 
+                          newSchedulingData.bloco && 
+                          newSchedulingData.horario && 
+                          newSchedulingData.data;
+
+        if (hasAllInfo) {
+          const blockName = blocks.find(b => b.id === newSchedulingData.bloco)?.name;
+          const semanas = newSchedulingData.semanas || 16;
+          
+          response += '\n🎯 **Perfeito! Tenho todas as informações!**\n\n';
+          response += `📋 **Resumo do Agendamento:**\n`;
+          response += `👨‍🏫 **Professor:** ${newSchedulingData.professor}\n`;
+          response += `📚 **Matéria:** ${newSchedulingData.materia}\n`;
+          response += `🏢 **Bloco:** ${blockName}\n`;
+          response += `⏰ **Horário:** ${newSchedulingData.horario} - ${newSchedulingData.duracao}\n`;
+          response += `📅 **Início:** ${format(new Date(newSchedulingData.data), 'dd/MM/yyyy')} (${newSchedulingData.diaSemana})\n`;
+          response += `📊 **Duração:** ${semanas} semanas\n\n`;
+          response += '✨ **Digite "confirmar" para criar os agendamentos ou "cancelar" para recomeçar!**';
+        } else {
+          // Solicitar informações faltantes
+          const missing = [];
+          if (!newSchedulingData.professor) missing.push('👨‍🏫 **Nome do professor**');
+          if (!newSchedulingData.materia) missing.push('📚 **Matéria/disciplina**');
+          if (!newSchedulingData.bloco) missing.push('🏢 **Bloco** (C, H15, H06, H03)');
+          if (!newSchedulingData.horario) missing.push('⏰ **Horário** (ex: 08:00, 14:00)');
+          if (!newSchedulingData.data) missing.push('📅 **Dia da semana** (segunda, terça, etc.)');
+          
+          if (missing.length > 0) {
+            response += '\n🤔 **Ainda preciso de algumas informações:**\n\n';
+            response += missing.join('\n') + '\n\n';
+            response += '💡 **Exemplo:** "Prof. Ana Silva, Cálculo I, Bloco C, toda segunda às 08:00 por 16 semanas"';
           }
         }
       }
-    }
 
-    // Verificar se temos todas as informações necessárias
-    const hasAllInfo = newSchedulingData.professor && 
-                      newSchedulingData.materia && 
-                      newSchedulingData.bloco && 
-                      newSchedulingData.horario && 
-                      newSchedulingData.data;
-
-    if (hasAllInfo && !lowerMessage.includes('confirmar') && !lowerMessage.includes('cancelar')) {
-      response += '\n🎯 Tenho todas as informações necessárias!\n\n';
-      response += `📋 **Resumo do Agendamento:**\n`;
-      response += `👨‍🏫 Professor: ${newSchedulingData.professor}\n`;
-      response += `📚 Matéria: ${newSchedulingData.materia}\n`;
-      response += `🏢 Bloco: ${blocks.find(b => b.id === newSchedulingData.bloco)?.name}\n`;
-      response += `⏰ Horário: ${newSchedulingData.horario} - ${newSchedulingData.duracao}\n`;
-      response += `📅 Início: ${format(new Date(newSchedulingData.data), 'dd/MM/yyyy')}\n`;
-      response += `📊 Duração: ${newSchedulingData.semanas || 16} semanas\n\n`;
-      response += '✨ Digite "confirmar" para criar os agendamentos ou "cancelar" para recomeçar!';
-    } else if (lowerMessage.includes('confirmar') && hasAllInfo) {
-      // Executar agendamento
-      try {
-        // Encontrar sala disponível no bloco
-        const blockRooms = rooms.filter(r => r.block_id === newSchedulingData.bloco);
-        if (blockRooms.length === 0) {
-          response = '❌ Não encontrei salas disponíveis no bloco selecionado.';
-        } else {
-          // Selecionar primeira sala disponível (pode ser melhorado com lógica de conflitos)
-          const selectedRoom = blockRooms[0];
-          
-          const startDate = new Date(newSchedulingData.data!);
-          const [startHour, startMinute] = newSchedulingData.horario!.split(':').map(Number);
-          const [endHour, endMinute] = newSchedulingData.duracao!.split(':').map(Number);
-          
-          startDate.setHours(startHour, startMinute, 0, 0);
-          const endDate = new Date(startDate);
-          endDate.setHours(endHour, endMinute, 0, 0);
-          
-          const reservation = {
-            room_id: selectedRoom.id,
-            teacher_name: newSchedulingData.professor!,
-            start_time: startDate.toISOString(),
-            end_time: endDate.toISOString(),
-            purpose: newSchedulingData.materia!
-          };
-          
-          const weeks = newSchedulingData.semanas || 16;
-          await addSemesterReservations(reservation, weeks);
-          
-          const blockName = blocks.find(b => b.id === newSchedulingData.bloco)?.name;
-          
-          response = `🎉 **Agendamento criado com sucesso!**\n\n`;
-          response += `✅ ${weeks} aulas agendadas para:\n`;
-          response += `👨‍🏫 ${newSchedulingData.professor}\n`;
-          response += `📚 ${newSchedulingData.materia}\n`;
-          response += `🏢 ${blockName} - ${selectedRoom.name}\n`;
-          response += `⏰ ${newSchedulingData.horario} - ${newSchedulingData.duracao}\n`;
-          response += `📅 Início: ${format(startDate, 'dd/MM/yyyy')}\n\n`;
-          response += '🚀 Pronto para um novo agendamento! Me diga o que precisa.';
-          
-          // Reset scheduling data
-          newSchedulingData = {};
-          
-          toast.success(`${weeks} aulas agendadas com sucesso!`);
-        }
-      } catch (error) {
-        console.error('Erro ao criar agendamento:', error);
-        response = '❌ Erro ao criar agendamento. Tente novamente.';
-        toast.error('Erro ao criar agendamento');
-      }
-    } else if (lowerMessage.includes('cancelar')) {
-      newSchedulingData = {};
-      response = '🔄 Agendamento cancelado! Vamos começar novamente. Me diga as informações para o novo agendamento.';
-    } else {
-      // Solicitar informações faltantes
-      const missing = [];
-      if (!newSchedulingData.professor) missing.push('👨‍🏫 Nome do professor');
-      if (!newSchedulingData.materia) missing.push('📚 Matéria/disciplina');
-      if (!newSchedulingData.bloco) missing.push('🏢 Bloco (C, H15, H06, H03)');
-      if (!newSchedulingData.horario) missing.push('⏰ Horário');
-      if (!newSchedulingData.data) missing.push('📅 Data de início ou dia da semana');
+      setSchedulingData(newSchedulingData);
       
-      if (missing.length > 0) {
-        response += '\n🤔 Ainda preciso de algumas informações:\n\n';
-        response += missing.join('\n') + '\n\n';
-        response += '💡 Exemplo: "Prof. Ana Silva, Cálculo I, Bloco C, 08:00, toda segunda-feira por 16 semanas"';
-      }
+      const aiMessage: Message = {
+        id: Date.now().toString(),
+        type: 'ai',
+        content: response,
+        timestamp: new Date(),
+        data: newSchedulingData
+      };
+      
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (error) {
+      console.error('Erro no processamento da IA:', error);
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        type: 'ai',
+        content: '❌ **Ops!** Algo deu errado no meu processamento.\n\nVamos tentar novamente? 🔄',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsProcessing(false);
     }
-
-    setSchedulingData(newSchedulingData);
-    
-    const aiMessage: Message = {
-      id: Date.now().toString(),
-      type: 'ai',
-      content: response,
-      timestamp: new Date(),
-      data: newSchedulingData
-    };
-    
-    setMessages(prev => [...prev, aiMessage]);
-    setIsProcessing(false);
   };
 
   const handleSendMessage = async () => {
@@ -306,8 +395,8 @@ export const AISchedulingChat = () => {
             <Sparkles className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">IA Agendamento Rápido</h2>
-            <p className="text-purple-100 text-sm">Converse comigo para agendar aulas automaticamente</p>
+            <h2 className="text-xl font-bold text-white">Luciano (LU) - IA Agendamento</h2>
+            <p className="text-purple-100 text-sm">Seu assistente inteligente para agendamentos rápidos</p>
           </div>
         </div>
       </div>
@@ -369,7 +458,7 @@ export const AISchedulingChat = () => {
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                 </div>
-                <span className="text-sm text-gray-600">IA processando...</span>
+                <span className="text-sm text-gray-600">LU processando...</span>
               </div>
             </div>
           </motion.div>
@@ -386,7 +475,7 @@ export const AISchedulingChat = () => {
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Digite sua mensagem... Ex: 'Quero agendar aulas do Prof. João de Cálculo no Bloco C às 08:00'"
+            placeholder="Digite sua mensagem... Ex: 'Prof. João, Cálculo I, Bloco C, toda segunda às 08:00'"
             className="flex-1 px-4 py-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
             disabled={isProcessing}
           />
@@ -408,11 +497,11 @@ export const AISchedulingChat = () => {
           </div>
           <div className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            <span>Horários: 07:10-22:35</span>
+            <span>Horários: 07:10-21:50</span>
           </div>
           <div className="flex items-center gap-1">
             <Users className="w-3 h-3" />
-            <span>Semestre: 16 semanas</span>
+            <span>Padrão: 16 semanas</span>
           </div>
         </div>
       </div>

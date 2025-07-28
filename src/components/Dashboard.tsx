@@ -26,7 +26,7 @@ export const Dashboard = () => {
 
   const menuItems = [
     { id: 'calendar', label: 'Visualizar Calendário', icon: CalendarDays, roles: ['admin', 'user'] },
-    { id: 'ai-chat', label: 'IA Agendamento Rápido', icon: MessageSquare, roles: ['admin'] },
+    { id: 'ai-chat', label: 'Luciano (LU) - IA Rápida', icon: MessageSquare, roles: ['admin'] },
     { id: 'new-reservation', label: 'Novo Agendamento', icon: Clock, roles: ['admin'] },
     { id: 'list', label: 'Lista de Agendamentos', icon: LayoutDashboard, roles: ['admin', 'user'] },
     { id: 'manage', label: 'Gerenciar Blocos e Salas', icon: Building2, roles: ['admin'] },
