@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Calendar, Clock, Building2, BookOpen, Users, Sparkles } from 'lucide-react';
+import { Send, Bot, User, Calendar, Clock, Building2, BookOpen, Users, CheckCircle, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store/useStore';
 import toast from 'react-hot-toast';
@@ -31,7 +31,7 @@ export const AISchedulingChat = () => {
     {
       id: '1',
       type: 'ai',
-      content: '👋 Olá! Eu sou o **Luciano**, mas pode me chamar de **LU**! Sou a IA do PRAGMA e estou aqui para facilitar seus agendamentos!\n\n🎯 **Como posso ajudar:**\nMe diga as informações da aula e eu cuido do resto:\n\n📋 **Informações necessárias:**\n• 👨‍🏫 Nome do professor\n• 📚 Matéria/disciplina\n• 🏢 Bloco (C, H15, H06, H03)\n• 🚪 Sala (opcional - posso sugerir uma disponível)\n• ⏰ Horário (ex: 08:00, 14:00)\n• 📅 Dia da semana (segunda, terça, etc.)\n• 📊 Quantas semanas (padrão: 16)\n\n💡 **Exemplo:**\n"Prof. João, Cálculo I, Bloco C, toda segunda às 08:00 por 16 semanas"\n\nVamos começar? 🚀',
+      content: 'Olá! Sou o Luciano, assistente de agendamentos do PRAGMA.\n\nPara criar um agendamento, informe:\n• Nome do professor\n• Disciplina\n• Bloco (C, H15, H06, H03)\n• Dia da semana\n• Horário\n• Número de semanas (padrão: 16)\n\nExemplo: "Prof. João Silva, Cálculo I, Bloco C, segunda-feira às 08:00, 16 semanas"',
       timestamp: new Date()
     }
   ]);
@@ -98,8 +98,7 @@ export const AISchedulingChat = () => {
     setIsProcessing(true);
     
     try {
-      // Simular processamento da IA
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 800));
       
       const lowerMessage = message.toLowerCase();
       let response = '';
@@ -115,12 +114,10 @@ export const AISchedulingChat = () => {
 
         if (hasAllInfo) {
           try {
-            // Encontrar sala disponível no bloco
             const blockRooms = rooms.filter(r => r.block_id === newSchedulingData.bloco);
             if (blockRooms.length === 0) {
-              response = '❌ **Ops!** Não encontrei salas disponíveis no bloco selecionado.\n\nVamos tentar outro bloco? 🤔';
+              response = 'Não há salas disponíveis no bloco selecionado.\n\nPor favor, escolha outro bloco.';
             } else {
-              // Usar sala específica ou primeira disponível
               const selectedRoom = newSchedulingData.sala 
                 ? blockRooms.find(r => r.id === newSchedulingData.sala) || blockRooms[0]
                 : blockRooms[0];
@@ -143,38 +140,32 @@ export const AISchedulingChat = () => {
               
               const weeks = newSchedulingData.semanas || 16;
               
-              console.log('🤖 LU: Criando agendamento:', reservation, 'por', weeks, 'semanas');
-              
               await addSemesterReservations(reservation, weeks);
               
               const blockName = blocks.find(b => b.id === newSchedulingData.bloco)?.name;
               
-              response = `🎉 **Perfeito! Agendamento criado com sucesso!**\n\n`;
-              response += `✅ **Resumo do que foi agendado:**\n`;
-              response += `👨‍🏫 **Professor:** ${newSchedulingData.professor}\n`;
-              response += `📚 **Matéria:** ${newSchedulingData.materia}\n`;
-              response += `🏢 **Local:** ${blockName} - ${selectedRoom.name}\n`;
-              response += `⏰ **Horário:** ${newSchedulingData.horario} - ${newSchedulingData.duracao}\n`;
-              response += `📅 **Início:** ${format(startDate, 'dd/MM/yyyy')}\n`;
-              response += `📊 **Total:** ${weeks} aulas agendadas\n\n`;
-              response += `🚀 **Pronto para o próximo agendamento!**\nMe diga o que mais precisa! 😊`;
+              response = `✓ Agendamento criado com sucesso\n\n`;
+              response += `Professor: ${newSchedulingData.professor}\n`;
+              response += `Disciplina: ${newSchedulingData.materia}\n`;
+              response += `Local: ${blockName} - ${selectedRoom.name}\n`;
+              response += `Horário: ${newSchedulingData.horario} - ${newSchedulingData.duracao}\n`;
+              response += `Início: ${format(startDate, 'dd/MM/yyyy')}\n`;
+              response += `Total: ${weeks} aulas agendadas`;
               
-              // Reset scheduling data
               newSchedulingData = {};
-              
-              toast.success(`🎉 ${weeks} aulas agendadas por LU!`);
+              toast.success(`${weeks} aulas agendadas com sucesso!`);
             }
           } catch (error) {
-            console.error('❌ Erro ao criar agendamento:', error);
-            response = '❌ **Oops!** Algo deu errado ao criar o agendamento.\n\nVamos tentar novamente? Digite as informações mais uma vez! 🔄';
+            console.error('Erro ao criar agendamento:', error);
+            response = 'Erro ao criar o agendamento.\n\nTente novamente ou verifique os dados informados.';
             toast.error('Erro ao criar agendamento');
           }
         } else {
-          response = '🤔 **Ainda faltam algumas informações!**\n\nPreciso de todos os dados antes de confirmar. Vamos completar? 📝';
+          response = 'Informações incompletas.\n\nPor favor, forneça todos os dados necessários antes de confirmar.';
         }
       } else if (lowerMessage.includes('cancelar') || lowerMessage.includes('não') || lowerMessage.includes('nao')) {
         newSchedulingData = {};
-        response = '🔄 **Agendamento cancelado!**\n\nSem problemas! Vamos começar um novo agendamento quando quiser. Me diga as informações! 😊';
+        response = 'Agendamento cancelado.\n\nPosso ajudar com um novo agendamento?';
       } else {
         // Extrair informações da mensagem
         
@@ -191,7 +182,6 @@ export const AISchedulingChat = () => {
               const profName = match[1].trim();
               if (profName.length > 2) {
                 newSchedulingData.professor = profName.startsWith('Prof') ? profName : `Prof. ${profName}`;
-                response += `✅ **Professor identificado:** ${newSchedulingData.professor}\n`;
                 break;
               }
             }
@@ -211,19 +201,16 @@ export const AISchedulingChat = () => {
           for (const materia of materias) {
             if (lowerMessage.includes(materia)) {
               newSchedulingData.materia = materia.charAt(0).toUpperCase() + materia.slice(1);
-              response += `✅ **Matéria identificada:** ${newSchedulingData.materia}\n`;
               break;
             }
           }
           
-          // Tentar extrair matéria de forma mais genérica
           if (!newSchedulingData.materia) {
             const materiaMatch = message.match(/(?:de|da|do)\s+([a-záêçõ\s]+?)(?:\s*,|\s*no|\s*em|\s*$)/i);
             if (materiaMatch) {
               const materia = materiaMatch[1].trim();
               if (materia.length > 3 && !materia.includes('bloco')) {
                 newSchedulingData.materia = materia.charAt(0).toUpperCase() + materia.slice(1);
-                response += `✅ **Matéria identificada:** ${newSchedulingData.materia}\n`;
               }
             }
           }
@@ -246,7 +233,6 @@ export const AISchedulingChat = () => {
               );
               if (foundBlock) {
                 newSchedulingData.bloco = foundBlock.id;
-                response += `✅ **Bloco identificado:** ${foundBlock.name}\n`;
                 break;
               }
             }
@@ -271,7 +257,6 @@ export const AISchedulingChat = () => {
               if (matchingSlot) {
                 newSchedulingData.horario = matchingSlot.start;
                 newSchedulingData.duracao = matchingSlot.end;
-                response += `✅ **Horário identificado:** ${matchingSlot.start} - ${matchingSlot.end}\n`;
                 break;
               }
             }
@@ -285,7 +270,6 @@ export const AISchedulingChat = () => {
               const proximaData = getNextDateForWeekday(numero);
               newSchedulingData.data = format(proximaData, 'yyyy-MM-dd');
               newSchedulingData.diaSemana = dia;
-              response += `✅ **Data identificada:** ${format(proximaData, 'dd/MM/yyyy')} (próxima ${dia})\n`;
               break;
             }
           }
@@ -296,7 +280,6 @@ export const AISchedulingChat = () => {
           const semanasMatch = message.match(/(\d+)\s*semanas?/i);
           if (semanasMatch) {
             newSchedulingData.semanas = parseInt(semanasMatch[1]);
-            response += `✅ **Duração:** ${newSchedulingData.semanas} semanas\n`;
           }
         }
 
@@ -311,28 +294,27 @@ export const AISchedulingChat = () => {
           const blockName = blocks.find(b => b.id === newSchedulingData.bloco)?.name;
           const semanas = newSchedulingData.semanas || 16;
           
-          response += '\n🎯 **Perfeito! Tenho todas as informações!**\n\n';
-          response += `📋 **Resumo do Agendamento:**\n`;
-          response += `👨‍🏫 **Professor:** ${newSchedulingData.professor}\n`;
-          response += `📚 **Matéria:** ${newSchedulingData.materia}\n`;
-          response += `🏢 **Bloco:** ${blockName}\n`;
-          response += `⏰ **Horário:** ${newSchedulingData.horario} - ${newSchedulingData.duracao}\n`;
-          response += `📅 **Início:** ${format(new Date(newSchedulingData.data), 'dd/MM/yyyy')} (${newSchedulingData.diaSemana})\n`;
-          response += `📊 **Duração:** ${semanas} semanas\n\n`;
-          response += '✨ **Digite "confirmar" para criar os agendamentos ou "cancelar" para recomeçar!**';
+          response = 'Dados coletados com sucesso:\n\n';
+          response += `Professor: ${newSchedulingData.professor}\n`;
+          response += `Disciplina: ${newSchedulingData.materia}\n`;
+          response += `Bloco: ${blockName}\n`;
+          response += `Horário: ${newSchedulingData.horario} - ${newSchedulingData.duracao}\n`;
+          response += `Início: ${format(new Date(newSchedulingData.data), 'dd/MM/yyyy')} (${newSchedulingData.diaSemana})\n`;
+          response += `Duração: ${semanas} semanas\n\n`;
+          response += 'Digite "confirmar" para criar os agendamentos.';
         } else {
           // Solicitar informações faltantes
           const missing = [];
-          if (!newSchedulingData.professor) missing.push('👨‍🏫 **Nome do professor**');
-          if (!newSchedulingData.materia) missing.push('📚 **Matéria/disciplina**');
-          if (!newSchedulingData.bloco) missing.push('🏢 **Bloco** (C, H15, H06, H03)');
-          if (!newSchedulingData.horario) missing.push('⏰ **Horário** (ex: 08:00, 14:00)');
-          if (!newSchedulingData.data) missing.push('📅 **Dia da semana** (segunda, terça, etc.)');
+          if (!newSchedulingData.professor) missing.push('Nome do professor');
+          if (!newSchedulingData.materia) missing.push('Disciplina');
+          if (!newSchedulingData.bloco) missing.push('Bloco (C, H15, H06, H03)');
+          if (!newSchedulingData.horario) missing.push('Horário (ex: 08:00, 14:00)');
+          if (!newSchedulingData.data) missing.push('Dia da semana');
           
           if (missing.length > 0) {
-            response += '\n🤔 **Ainda preciso de algumas informações:**\n\n';
-            response += missing.join('\n') + '\n\n';
-            response += '💡 **Exemplo:** "Prof. Ana Silva, Cálculo I, Bloco C, toda segunda às 08:00 por 16 semanas"';
+            response = 'Informações necessárias:\n\n';
+            response += missing.map(item => `• ${item}`).join('\n');
+            response += '\n\nExemplo: "Prof. Ana Silva, Cálculo I, Bloco C, segunda-feira às 08:00, 16 semanas"';
           }
         }
       }
@@ -349,11 +331,11 @@ export const AISchedulingChat = () => {
       
       setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
-      console.error('Erro no processamento da IA:', error);
+      console.error('Erro no processamento:', error);
       const errorMessage: Message = {
         id: Date.now().toString(),
         type: 'ai',
-        content: '❌ **Ops!** Algo deu errado no meu processamento.\n\nVamos tentar novamente? 🔄',
+        content: 'Erro no processamento da solicitação.\n\nTente novamente.',
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -387,78 +369,63 @@ export const AISchedulingChat = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-sm overflow-hidden h-[600px] flex flex-col">
+    <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden h-[700px] flex flex-col">
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4">
+      <div className="bg-gray-50 border-b border-gray-200 p-4">
         <div className="flex items-center gap-3">
-          <div className="bg-white/20 p-2 rounded-full">
-            <Sparkles className="w-6 h-6 text-white" />
+          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+            <Bot className="w-5 h-5 text-blue-600" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">Luciano (LU) - IA Agendamento</h2>
-            <p className="text-purple-100 text-sm">Seu assistente inteligente para agendamentos rápidos</p>
+            <h2 className="font-semibold text-gray-900">Luciano (LU)</h2>
+            <p className="text-sm text-gray-500">Assistente de Agendamentos</p>
           </div>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
         <AnimatePresence>
           {messages.map((message) => (
             <motion.div
               key={message.id}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className={`flex gap-3 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+              exit={{ opacity: 0, y: -10 }}
+              className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              {message.type === 'ai' && (
-                <div className="bg-gradient-to-br from-purple-500 to-blue-500 p-2 rounded-full flex-shrink-0">
-                  <Bot className="w-5 h-5 text-white" />
-                </div>
-              )}
-              
-              <div className={`max-w-[80%] rounded-2xl p-4 ${
+              <div className={`max-w-[75%] rounded-lg p-3 shadow-sm ${
                 message.type === 'user' 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-100 text-gray-800'
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-white text-gray-800 border border-gray-200'
               }`}>
                 <div className="whitespace-pre-wrap text-sm leading-relaxed">
                   {message.content}
                 </div>
-                <div className={`text-xs mt-2 opacity-70 ${
-                  message.type === 'user' ? 'text-blue-100' : 'text-gray-500'
+                <div className={`text-xs mt-2 ${
+                  message.type === 'user' ? 'text-blue-100' : 'text-gray-400'
                 }`}>
                   {format(message.timestamp, 'HH:mm')}
                 </div>
               </div>
-
-              {message.type === 'user' && (
-                <div className="bg-blue-500 p-2 rounded-full flex-shrink-0">
-                  <User className="w-5 h-5 text-white" />
-                </div>
-              )}
             </motion.div>
           ))}
         </AnimatePresence>
 
         {isProcessing && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex gap-3 justify-start"
+            className="flex justify-start"
           >
-            <div className="bg-gradient-to-br from-purple-500 to-blue-500 p-2 rounded-full">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
-            <div className="bg-gray-100 rounded-2xl p-4">
+            <div className="bg-white rounded-lg p-3 shadow-sm border border-gray-200">
               <div className="flex items-center gap-2">
                 <div className="flex space-x-1">
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                 </div>
-                <span className="text-sm text-gray-600">LU processando...</span>
+                <span className="text-sm text-gray-500">Processando...</span>
               </div>
             </div>
           </motion.div>
@@ -468,41 +435,40 @@ export const AISchedulingChat = () => {
       </div>
 
       {/* Input */}
-      <div className="border-t p-4">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Digite sua mensagem... Ex: 'Prof. João, Cálculo I, Bloco C, toda segunda às 08:00'"
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
-            disabled={isProcessing}
-          />
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+      <div className="border-t border-gray-200 p-4 bg-white">
+        <div className="flex gap-3 items-end">
+          <div className="flex-1">
+            <textarea
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Digite sua mensagem..."
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+              rows={1}
+              disabled={isProcessing}
+              style={{ minHeight: '44px', maxHeight: '120px' }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+              }}
+            />
+          </div>
+          <button
             onClick={handleSendMessage}
             disabled={!inputMessage.trim() || isProcessing}
-            className="bg-gradient-to-r from-purple-500 to-blue-500 text-white p-3 rounded-full hover:from-purple-600 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
           >
             <Send className="w-5 h-5" />
-          </motion.button>
+          </button>
         </div>
         
-        <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-          <div className="flex items-center gap-1">
-            <Calendar className="w-3 h-3" />
-            <span>Blocos: C, H15, H06, H03</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            <span>Horários: 07:10-21:50</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Users className="w-3 h-3" />
-            <span>Padrão: 16 semanas</span>
-          </div>
+        <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+          <span>Blocos: C, H15, H06, H03</span>
+          <span>•</span>
+          <span>Horários: 07:10-21:50</span>
+          <span>•</span>
+          <span>Padrão: 16 semanas</span>
         </div>
       </div>
     </div>
