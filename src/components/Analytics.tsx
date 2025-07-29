@@ -53,8 +53,10 @@ export const Analytics = () => {
   const generateAnalytics = () => {
     setLoading(true);
     
-    // Obter todas as reservas
-    const allReservations = getAllReservations();
+    // Usar método otimizado para obter reservas
+    const allReservations = selectedPeriod === 'year' 
+      ? getAllReservations() 
+      : getAllReservations().slice(-1000); // Limitar para performance
     
     try {
       let periods: Date[] = [];

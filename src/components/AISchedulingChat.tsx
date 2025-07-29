@@ -43,6 +43,16 @@ export const AISchedulingChat = () => {
   
   const { blocks, rooms, addSemesterReservations, addReservation } = useStore();
 
+  // Otimização: usar apenas primeiras 100 salas de cada bloco para performance
+  const optimizedRooms = useMemo(() => {
+    const roomsByBlock = new Map<string, Room[]>();
+    blocks.forEach(block => {
+      const blockRooms = rooms.filter(r => r.block_id === block.id).slice(0, 100);
+      roomsByBlock.set(block.id, blockRooms);
+    });
+    return roomsByBlock;
+  }, [blocks, rooms]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -114,7 +124,7 @@ export const AISchedulingChat = () => {
 
         if (hasAllInfo) {
           try {
-            const blockRooms = rooms.filter(r => r.block_id === newSchedulingData.bloco);
+            const blockRooms = optimizedRooms.get(newSchedulingData.bloco!) || [];
             if (blockRooms.length === 0) {
               response = 'Não há salas disponíveis no bloco selecionado.\n\nPor favor, escolha outro bloco.';
             } else {

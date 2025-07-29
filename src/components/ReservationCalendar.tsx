@@ -34,7 +34,8 @@ interface ReservationCalendarProps {
 export const ReservationCalendar: React.FC<ReservationCalendarProps> = ({ viewMode }) => {
   const { 
     blocks,
-    rooms, 
+    rooms,
+    getRoomsByBlock,
     reservations, 
     selectedDate, 
     setSelectedDate, 
@@ -62,6 +63,11 @@ export const ReservationCalendar: React.FC<ReservationCalendarProps> = ({ viewMo
     setSelectedRoom('');
   }, [selectedBlock]);
 
+  // Usar método otimizado para obter salas do bloco
+  const availableRooms = useMemo(() => {
+    if (!selectedBlock) return [];
+    return getRoomsByBlock(selectedBlock).slice(0, 50); // Limitar para performance
+  }, [selectedBlock, getRoomsByBlock]);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedRoom || !teacherName || !purpose) return;
@@ -166,13 +172,15 @@ export const ReservationCalendar: React.FC<ReservationCalendarProps> = ({ viewMo
               disabled={!selectedBlock}
             >
               <option value="">Selecione uma sala</option>
-              {rooms
-                .filter(room => room.block_id === selectedBlock)
+              {availableRooms
                 .map((room) => (
                   <option key={room.id} value={room.id}>
                     {room.name}
                   </option>
                 ))}
+              {getRoomsByBlock(selectedBlock).length > 50 && (
+                <option disabled>... e mais {getRoomsByBlock(selectedBlock).length - 50} salas</option>
+              )}
             </select>
           </div>
 
