@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Calendar from 'react-calendar';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
