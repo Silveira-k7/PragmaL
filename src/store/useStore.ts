@@ -1,6 +1,8 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { Block, Room, Reservation } from '../types';
 import { startOfDay, endOfDay, addWeeks, startOfYear, endOfYear } from 'date-fns';
+import { offlineStorage } from '../lib/offlineStorage';
 
 interface State {
   blocks: Block[];
@@ -169,6 +171,9 @@ roomIdCounter = Math.max(...storedRooms.map(r => parseInt(r.id))) + 1;
 reservationIdCounter = Math.max(...storedReservations.map(r => parseInt(r.id))) + 1;
 
 export const useStore = create<State>((set, get) => ({
+export const useStore = create<State>()(
+  persist(
+    (set, get) => ({
   blocks: storedBlocks,
   rooms: storedRooms,
   reservations: [],
@@ -362,4 +367,21 @@ export const useStore = create<State>((set, get) => ({
   getAllReservations: () => {
     return storedReservations;
   }
-}));
+    }),
+    {
+      name: 'pragma-storage',
+      partialize: (state) => ({
+        blocks: state.blocks,
+        rooms: state.rooms,
+        allReservations: state.allReservations,
+        selectedDate: state.selectedDate
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.buildCache();
+          state.initializeSampleData();
+        }
+      }
+    }
+  )
+);

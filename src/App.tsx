@@ -2,9 +2,23 @@ import React from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
+import { OfflineIndicator } from './components/OfflineIndicator';
 
 function App() {
   const { user, loading } = useAuth();
+
+  // Registrar Service Worker
+  React.useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then((registration) => {
+          console.log('Service Worker registrado:', registration);
+        })
+        .catch((error) => {
+          console.error('Erro ao registrar Service Worker:', error);
+        });
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -14,7 +28,12 @@ function App() {
     );
   }
 
-  return user ? <Dashboard /> : <Auth />;
+  return (
+    <>
+      <OfflineIndicator />
+      {user ? <Dashboard /> : <Auth />}
+    </>
+  );
 }
 
 export default App;
