@@ -9,13 +9,16 @@ function App() {
 
   // Registrar Service Worker
   React.useEffect(() => {
-    if ('serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator && !import.meta.env.DEV) {
       navigator.serviceWorker.register('/sw.js')
         .then((registration) => {
           console.log('Service Worker registrado:', registration);
         })
         .catch((error) => {
-          console.error('Erro ao registrar Service Worker:', error);
+          // Only log in production, ignore in development
+          if (!import.meta.env.DEV) {
+            console.error('Erro ao registrar Service Worker:', error);
+          }
         });
     }
   }, []);

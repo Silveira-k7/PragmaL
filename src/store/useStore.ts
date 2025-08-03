@@ -2,63 +2,60 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../lib/supabase';
 import { offlineStorage } from '../lib/offlineStorage';
-
-export interface Reservation {
-  id: string;
-  professor_name: string;
-  subject: string;
-  block: string;
-  room: string;
-  date: string;
-  start_time: string;
-  end_time: string;
-  created_at: string;
-  user_id?: string;
-}
-
-export interface User {
-  id: string;
-  email: string;
-  role: 'admin' | 'user';
-  created_at: string;
-}
+import { Block, Room, Reservation } from '../types';
 
 interface StoreState {
-  // Auth
-  user: User | null;
-  isAuthenticated: boolean;
-  
   // Data
+  blocks: Block[];
+  rooms: Room[];
   reservations: Reservation[];
-  users: User[];
   
   // UI State
-  isLoading: boolean;
+  selectedDate: Date;
+  currentPage: number;
+  itemsPerPage: number;
+  totalItems: number;
+  loading: boolean;
   error: string | null;
   
   // Cache
   cachedReservations: Map<string, Reservation[]>;
-  cachedRooms: Map<string, string[]>;
+  cachedRooms: Map<string, Room[]>;
   lastSync: number;
   
   // Actions
-  setUser: (user: User | null) => void;
+  setBlocks: (blocks: Block[]) => void;
+  setRooms: (rooms: Room[]) => void;
   setReservations: (reservations: Reservation[]) => void;
-  setUsers: (users: User[]) => void;
+  setSelectedDate: (date: Date) => void;
+  setPage: (page: number) => void;
+  setItemsPerPage: (items: number) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  clearError: () => void;
   
   // Data operations
-  addReservation: (reservation: Omit<Reservation, 'id' | 'created_at'>) => Promise<void>;
-  deleteReservation: (id: string) => Promise<void>;
+  fetchBlocks: () => Promise<void>;
+  fetchRooms: () => Promise<void>;
   fetchReservations: () => Promise<void>;
-  fetchUsers: () => Promise<void>;
+  addBlock: (name: string) => Promise<void>;
+  addRoom: (blockId: string, name: string) => Promise<void>;
+  deleteBlock: (id: string) => Promise<void>;
+  deleteRoom: (id: string) => Promise<void>;
+  addReservation: (reservation: Omit<Reservation, 'id'>) => Promise<void>;
+  addSemesterReservations: (reservation: Omit<Reservation, 'id'>, weeks: number) => Promise<void>;
+  deleteReservation: (id: string) => Promise<void>;
+  
+  // Helper functions
+  getRoomsByBlock: (blockId: string) => Room[];
+  getAllReservations: () => Reservation[];
   
   // Cache operations
   getCachedReservations: (key: string) => Reservation[] | null;
   setCachedReservations: (key: string, reservations: Reservation[]) => void;
-  getCachedRooms: (block: string) => string[] | null;
-  setCachedRooms: (block: string, rooms: string[]) => void;
+  
+  // Initialization
+  initializeSampleData: () => Promise<void>;
   
   // Offline support
   syncOfflineData: () => Promise<void>;
@@ -66,25 +63,61 @@ interface StoreState {
 }
 
 // Generate sample data for development
-const generateSampleData = (): Reservation[] => {
-  const blocks = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+const generateSampleBlocks = (): Block[] => {
+  return [
+    { id: 'block-c', name: 'Bloco C' },
+    { id: 'block-h15', name: 'Bloco H15' },
+    { id: 'block-h06', name: 'Bloco H06' },
+    { id: 'block-h03', name: 'Bloco H03' },
+    { id: 'block-a', name: 'Bloco A' },
+    { id: 'block-b', name: 'Bloco B' },
+    { id: 'block-d', name: 'Bloco D' },
+    { id: 'block-e', name: 'Bloco E' },
+    { id: 'block-f', name: 'Bloco F' },
+    { id: 'block-g', name: 'Bloco G' }
+  ];
+};
+
+const generateSampleRooms = (blocks: Block[]): Room[] => {
+  const rooms: Room[] = [];
+  
+  blocks.forEach(block => {
+    const roomCount = Math.floor(Math.random() * 151) + 150; // 150-300 rooms per block
+    
+    for (let i = 1; i <= roomCount; i++) {
+      rooms.push({
+        id: `${block.id}-room-${i.toString().padStart(3, '0')}`,
+        block_id: block.id,
+        name: `Sala ${i.toString().padStart(3, '0')}`
+      });
+    }
+  });
+  
+  return rooms;
+};
+
+const generateSampleReservations = (rooms: Room[]): Reservation[] => {
   const professors = [
     'Prof. João Silva', 'Prof. Maria Santos', 'Prof. Carlos Oliveira',
     'Prof. Ana Costa', 'Prof. Pedro Lima', 'Prof. Julia Ferreira',
     'Prof. Roberto Alves', 'Prof. Fernanda Souza', 'Prof. Lucas Pereira',
-    'Prof. Camila Rodrigues'
+    'Prof. Camila Rodrigues', 'Prof. Ricardo Mendes', 'Prof. Patricia Gomes',
+    'Prof. Eduardo Santos', 'Prof. Beatriz Lima', 'Prof. Marcos Oliveira'
   ];
+  
   const subjects = [
     'Cálculo I', 'Física I', 'Química Geral', 'Programação I',
     'Álgebra Linear', 'Estatística', 'Biologia Molecular',
-    'História do Brasil', 'Inglês Técnico', 'Metodologia Científica'
+    'História do Brasil', 'Inglês Técnico', 'Metodologia Científica',
+    'Estruturas de Dados', 'Banco de Dados', 'Redes de Computadores',
+    'Engenharia de Software', 'Inteligência Artificial'
   ];
 
   const reservations: Reservation[] = [];
   const today = new Date();
   
-  // Generate 60 days of data (past and future)
-  for (let dayOffset = -30; dayOffset <= 30; dayOffset++) {
+  // Generate 3 months of data (past and future)
+  for (let dayOffset = -45; dayOffset <= 45; dayOffset++) {
     const date = new Date(today);
     date.setDate(today.getDate() + dayOffset);
     
@@ -95,65 +128,285 @@ const generateSampleData = (): Reservation[] => {
     const reservationsPerDay = Math.floor(Math.random() * 11) + 15;
     
     for (let i = 0; i < reservationsPerDay; i++) {
-      const block = blocks[Math.floor(Math.random() * blocks.length)];
-      const roomNumber = Math.floor(Math.random() * 300) + 1;
-      const room = `${roomNumber.toString().padStart(3, '0')}`;
+      const room = rooms[Math.floor(Math.random() * Math.min(rooms.length, 1000))]; // Limit for performance
       
       const startHour = Math.floor(Math.random() * 10) + 7; // 7-16h
-      const startTime = `${startHour.toString().padStart(2, '0')}:00`;
-      const endTime = `${(startHour + 2).toString().padStart(2, '0')}:00`;
+      const duration = Math.floor(Math.random() * 3) + 1; // 1-3 hours
+      
+      const startTime = new Date(date);
+      startTime.setHours(startHour, 0, 0, 0);
+      
+      const endTime = new Date(startTime);
+      endTime.setHours(startHour + duration, 0, 0, 0);
       
       reservations.push({
-        id: `${date.toISOString().split('T')[0]}-${block}-${room}-${i}`,
-        professor_name: professors[Math.floor(Math.random() * professors.length)],
-        subject: subjects[Math.floor(Math.random() * subjects.length)],
-        block,
-        room,
-        date: date.toISOString().split('T')[0],
-        start_time: startTime,
-        end_time: endTime,
-        created_at: new Date(date.getTime() - Math.random() * 86400000).toISOString(),
-        user_id: 'sample-user'
+        id: `res-${date.toISOString().split('T')[0]}-${room.id}-${i}`,
+        room_id: room.id,
+        teacher_name: professors[Math.floor(Math.random() * professors.length)],
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
+        purpose: subjects[Math.floor(Math.random() * subjects.length)]
       });
     }
   }
   
-  return reservations.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return reservations.sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime());
 };
 
 export const useStore = create<StoreState>()(
   persist(
     (set, get) => ({
       // Initial state
-      user: null,
-      isAuthenticated: false,
-      reservations: generateSampleData(),
-      users: [],
-      isLoading: false,
+      blocks: [],
+      rooms: [],
+      reservations: [],
+      selectedDate: new Date(),
+      currentPage: 1,
+      itemsPerPage: 25,
+      totalItems: 0,
+      loading: false,
       error: null,
       cachedReservations: new Map(),
       cachedRooms: new Map(),
       lastSync: Date.now(),
 
       // Actions
-      setUser: (user) => set({ user, isAuthenticated: !!user }),
-      setReservations: (reservations) => set({ reservations }),
-      setUsers: (users) => set({ users }),
-      setLoading: (isLoading) => set({ isLoading }),
+      setBlocks: (blocks) => set({ blocks }),
+      setRooms: (rooms) => set({ rooms }),
+      setReservations: (reservations) => set({ reservations, totalItems: reservations.length }),
+      setSelectedDate: (selectedDate) => set({ selectedDate }),
+      setPage: (currentPage) => set({ currentPage }),
+      setItemsPerPage: (itemsPerPage) => set({ itemsPerPage, currentPage: 1 }),
+      setLoading: (loading) => set({ loading }),
       setError: (error) => set({ error }),
+      clearError: () => set({ error: null }),
 
       // Data operations
+      fetchBlocks: async () => {
+        try {
+          set({ loading: true, error: null });
+          
+          if (navigator.onLine) {
+            const { data, error } = await supabase
+              .from('blocks')
+              .select('*')
+              .order('name');
+            
+            if (error) throw error;
+            
+            if (data) {
+              set({ blocks: data });
+              return;
+            }
+          }
+          
+          // Fallback to sample data
+          const sampleBlocks = generateSampleBlocks();
+          set({ blocks: sampleBlocks });
+        } catch (error) {
+          console.error('Error fetching blocks:', error);
+          // Use sample data as fallback
+          const sampleBlocks = generateSampleBlocks();
+          set({ blocks: sampleBlocks });
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      fetchRooms: async () => {
+        try {
+          set({ loading: true, error: null });
+          
+          if (navigator.onLine) {
+            const { data, error } = await supabase
+              .from('rooms')
+              .select('*')
+              .order('name');
+            
+            if (error) throw error;
+            
+            if (data) {
+              set({ rooms: data });
+              return;
+            }
+          }
+          
+          // Fallback to sample data
+          const { blocks } = get();
+          const sampleRooms = generateSampleRooms(blocks);
+          set({ rooms: sampleRooms });
+        } catch (error) {
+          console.error('Error fetching rooms:', error);
+          // Use sample data as fallback
+          const { blocks } = get();
+          const sampleRooms = generateSampleRooms(blocks);
+          set({ rooms: sampleRooms });
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      fetchReservations: async () => {
+        try {
+          set({ loading: true, error: null });
+          
+          if (navigator.onLine) {
+            const { data, error } = await supabase
+              .from('reservations')
+              .select('*')
+              .order('start_time', { ascending: false });
+            
+            if (error) throw error;
+            
+            if (data) {
+              set({ reservations: data, totalItems: data.length, lastSync: Date.now() });
+              await offlineStorage.saveOfflineData('reservations', data);
+              return;
+            }
+          }
+          
+          // Try offline data
+          const offlineData = await offlineStorage.getOfflineData('reservations');
+          if (offlineData && offlineData.length > 0) {
+            set({ reservations: offlineData, totalItems: offlineData.length });
+            return;
+          }
+          
+          // Fallback to sample data
+          const { rooms } = get();
+          if (rooms.length > 0) {
+            const sampleReservations = generateSampleReservations(rooms);
+            set({ reservations: sampleReservations, totalItems: sampleReservations.length });
+          }
+        } catch (error) {
+          console.error('Error fetching reservations:', error);
+          set({ error: error instanceof Error ? error.message : 'Failed to fetch reservations' });
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      addBlock: async (name) => {
+        try {
+          set({ loading: true, error: null });
+          
+          const newBlock: Block = {
+            id: `block-${Date.now()}`,
+            name
+          };
+
+          if (navigator.onLine) {
+            const { error } = await supabase
+              .from('blocks')
+              .insert([newBlock]);
+            
+            if (error) throw error;
+          }
+
+          const { blocks } = get();
+          set({ blocks: [...blocks, newBlock], loading: false });
+        } catch (error) {
+          console.error('Error adding block:', error);
+          set({ 
+            error: error instanceof Error ? error.message : 'Failed to add block',
+            loading: false 
+          });
+        }
+      },
+
+      addRoom: async (blockId, name) => {
+        try {
+          set({ loading: true, error: null });
+          
+          const newRoom: Room = {
+            id: `room-${Date.now()}`,
+            block_id: blockId,
+            name
+          };
+
+          if (navigator.onLine) {
+            const { error } = await supabase
+              .from('rooms')
+              .insert([newRoom]);
+            
+            if (error) throw error;
+          }
+
+          const { rooms } = get();
+          set({ rooms: [...rooms, newRoom], loading: false });
+        } catch (error) {
+          console.error('Error adding room:', error);
+          set({ 
+            error: error instanceof Error ? error.message : 'Failed to add room',
+            loading: false 
+          });
+        }
+      },
+
+      deleteBlock: async (id) => {
+        try {
+          set({ loading: true, error: null });
+          
+          if (navigator.onLine) {
+            const { error } = await supabase
+              .from('blocks')
+              .delete()
+              .eq('id', id);
+            
+            if (error) throw error;
+          }
+
+          const { blocks, rooms } = get();
+          set({ 
+            blocks: blocks.filter(b => b.id !== id),
+            rooms: rooms.filter(r => r.block_id !== id),
+            loading: false 
+          });
+        } catch (error) {
+          console.error('Error deleting block:', error);
+          set({ 
+            error: error instanceof Error ? error.message : 'Failed to delete block',
+            loading: false 
+          });
+        }
+      },
+
+      deleteRoom: async (id) => {
+        try {
+          set({ loading: true, error: null });
+          
+          if (navigator.onLine) {
+            const { error } = await supabase
+              .from('rooms')
+              .delete()
+              .eq('id', id);
+            
+            if (error) throw error;
+          }
+
+          const { rooms } = get();
+          set({ 
+            rooms: rooms.filter(r => r.id !== id),
+            loading: false 
+          });
+        } catch (error) {
+          console.error('Error deleting room:', error);
+          set({ 
+            error: error instanceof Error ? error.message : 'Failed to delete room',
+            loading: false 
+          });
+        }
+      },
+
       addReservation: async (reservationData) => {
         try {
-          set({ isLoading: true, error: null });
+          set({ loading: true, error: null });
           
           const newReservation: Reservation = {
             ...reservationData,
-            id: crypto.randomUUID(),
-            created_at: new Date().toISOString(),
+            id: `res-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
           };
 
-          // Try to save online first
           if (navigator.onLine) {
             const { error } = await supabase
               .from('reservations')
@@ -161,28 +414,77 @@ export const useStore = create<StoreState>()(
             
             if (error) throw error;
           } else {
-            // Save offline
-            await offlineStorage.addPendingReservation(newReservation);
+            await offlineStorage.saveOfflineData('pending_reservations', [newReservation]);
           }
 
-          // Update local state
           const { reservations } = get();
+          const updatedReservations = [newReservation, ...reservations];
           set({ 
-            reservations: [newReservation, ...reservations],
-            isLoading: false 
+            reservations: updatedReservations,
+            totalItems: updatedReservations.length,
+            loading: false 
           });
         } catch (error) {
           console.error('Error adding reservation:', error);
           set({ 
             error: error instanceof Error ? error.message : 'Failed to add reservation',
-            isLoading: false 
+            loading: false 
+          });
+        }
+      },
+
+      addSemesterReservations: async (reservationData, weeks) => {
+        try {
+          set({ loading: true, error: null });
+          
+          const reservations: Reservation[] = [];
+          const startDate = new Date(reservationData.start_time);
+          
+          for (let week = 0; week < weeks; week++) {
+            const weekDate = new Date(startDate);
+            weekDate.setDate(startDate.getDate() + (week * 7));
+            
+            const startTime = new Date(weekDate);
+            const endTime = new Date(reservationData.end_time);
+            endTime.setDate(weekDate.getDate());
+            
+            reservations.push({
+              ...reservationData,
+              id: `res-${Date.now()}-${week}-${Math.random().toString(36).substr(2, 9)}`,
+              start_time: startTime.toISOString(),
+              end_time: endTime.toISOString()
+            });
+          }
+
+          if (navigator.onLine) {
+            const { error } = await supabase
+              .from('reservations')
+              .insert(reservations);
+            
+            if (error) throw error;
+          } else {
+            await offlineStorage.saveOfflineData('pending_reservations', reservations);
+          }
+
+          const { reservations: currentReservations } = get();
+          const updatedReservations = [...reservations, ...currentReservations];
+          set({ 
+            reservations: updatedReservations,
+            totalItems: updatedReservations.length,
+            loading: false 
+          });
+        } catch (error) {
+          console.error('Error adding semester reservations:', error);
+          set({ 
+            error: error instanceof Error ? error.message : 'Failed to add semester reservations',
+            loading: false 
           });
         }
       },
 
       deleteReservation: async (id) => {
         try {
-          set({ isLoading: true, error: null });
+          set({ loading: true, error: null });
           
           if (navigator.onLine) {
             const { error } = await supabase
@@ -193,70 +495,31 @@ export const useStore = create<StoreState>()(
             if (error) throw error;
           }
 
-          // Update local state
           const { reservations } = get();
+          const updatedReservations = reservations.filter(r => r.id !== id);
           set({ 
-            reservations: reservations.filter(r => r.id !== id),
-            isLoading: false 
+            reservations: updatedReservations,
+            totalItems: updatedReservations.length,
+            loading: false 
           });
         } catch (error) {
           console.error('Error deleting reservation:', error);
           set({ 
             error: error instanceof Error ? error.message : 'Failed to delete reservation',
-            isLoading: false 
+            loading: false 
           });
         }
       },
 
-      fetchReservations: async () => {
-        try {
-          set({ isLoading: true, error: null });
-          
-          if (navigator.onLine) {
-            const { data, error } = await supabase
-              .from('reservations')
-              .select('*')
-              .order('created_at', { ascending: false });
-            
-            if (error) throw error;
-            
-            if (data) {
-              set({ reservations: data, lastSync: Date.now() });
-              // Cache the data offline
-              await offlineStorage.cacheReservations(data);
-            }
-          } else {
-            // Load from offline cache
-            const cachedData = await offlineStorage.getCachedReservations();
-            if (cachedData.length > 0) {
-              set({ reservations: cachedData });
-            }
-          }
-          
-          set({ isLoading: false });
-        } catch (error) {
-          console.error('Error fetching reservations:', error);
-          set({ 
-            error: error instanceof Error ? error.message : 'Failed to fetch reservations',
-            isLoading: false 
-          });
-        }
+      // Helper functions
+      getRoomsByBlock: (blockId) => {
+        const { rooms } = get();
+        return rooms.filter(room => room.block_id === blockId);
       },
 
-      fetchUsers: async () => {
-        try {
-          if (!navigator.onLine) return;
-          
-          const { data, error } = await supabase
-            .from('users')
-            .select('*')
-            .order('created_at', { ascending: false });
-          
-          if (error) throw error;
-          if (data) set({ users: data });
-        } catch (error) {
-          console.error('Error fetching users:', error);
-        }
+      getAllReservations: () => {
+        const { reservations } = get();
+        return reservations;
       },
 
       // Cache operations
@@ -271,15 +534,21 @@ export const useStore = create<StoreState>()(
         set({ cachedReservations: new Map(cachedReservations) });
       },
 
-      getCachedRooms: (block) => {
-        const { cachedRooms } = get();
-        return cachedRooms.get(block) || null;
-      },
-
-      setCachedRooms: (block, rooms) => {
-        const { cachedRooms } = get();
-        cachedRooms.set(block, rooms);
-        set({ cachedRooms: new Map(cachedRooms) });
+      // Initialization
+      initializeSampleData: async () => {
+        const { blocks, rooms, reservations } = get();
+        
+        if (blocks.length === 0) {
+          await get().fetchBlocks();
+        }
+        
+        if (rooms.length === 0) {
+          await get().fetchRooms();
+        }
+        
+        if (reservations.length === 0) {
+          await get().fetchReservations();
+        }
       },
 
       // Offline support
@@ -287,10 +556,9 @@ export const useStore = create<StoreState>()(
         try {
           if (!navigator.onLine) return;
           
-          set({ isLoading: true });
+          set({ loading: true });
           
-          // Sync pending reservations
-          const pendingReservations = await offlineStorage.getPendingReservations();
+          const pendingReservations = await offlineStorage.getOfflineData('pending_reservations') || [];
           
           for (const reservation of pendingReservations) {
             const { error } = await supabase
@@ -298,17 +566,16 @@ export const useStore = create<StoreState>()(
               .insert([reservation]);
             
             if (!error) {
-              await offlineStorage.removePendingReservation(reservation.id);
+              await offlineStorage.markAsSynced('pending_reservations', reservation.id);
             }
           }
           
-          // Fetch latest data
           await get().fetchReservations();
           
-          set({ isLoading: false, lastSync: Date.now() });
+          set({ loading: false, lastSync: Date.now() });
         } catch (error) {
           console.error('Error syncing offline data:', error);
-          set({ isLoading: false });
+          set({ loading: false });
         }
       },
 
@@ -324,9 +591,10 @@ export const useStore = create<StoreState>()(
     {
       name: 'pragma-store',
       partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
+        blocks: state.blocks,
+        rooms: state.rooms,
         reservations: state.reservations,
+        selectedDate: state.selectedDate,
         lastSync: state.lastSync,
       }),
     }
