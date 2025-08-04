@@ -15,7 +15,7 @@ type View = 'calendar' | 'list' | 'manage' | 'new-reservation' | 'users' | 'anal
 
 export const Dashboard = () => {
   const [currentView, setCurrentView] = useState<View>('calendar');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { user, logout, isAdmin } = useAuth();
   const { initializeSampleData } = useStore();
 
@@ -35,9 +35,9 @@ export const Dashboard = () => {
   ].filter(item => item.roles.includes(user?.role || ''));
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 relative">
       <button
-        className="fixed top-4 left-4 z-50 md:hidden bg-white p-2 rounded-lg shadow-md"
+        className="fixed top-4 left-4 z-50 bg-white p-2 rounded-lg shadow-md hover:bg-gray-50 transition-colors"
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
       >
         {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -45,13 +45,22 @@ export const Dashboard = () => {
 
       <AnimatePresence>
         {isSidebarOpen && (
+          <>
+            {/* Overlay para mobile */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
+              onClick={() => setIsSidebarOpen(false)}
+            />
+            
           <motion.aside
             initial={{ x: -300 }}
             animate={{ x: 0 }}
             exit={{ x: -300 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className={`bg-white border-r border-slate-200 fixed h-full z-40 
-              ${isSidebarOpen ? 'w-64' : 'w-0'} md:w-64 transition-all duration-300`}
+            className="bg-white border-r border-slate-200 fixed h-full z-40 w-64 overflow-y-auto"
           >
             <div className="p-6">
               <h1 className="text-2xl font-bold text-slate-900 mb-1">PRAGMA</h1>
@@ -78,7 +87,7 @@ export const Dashboard = () => {
                       whileTap={{ scale: 0.98 }}
                       onClick={() => {
                         setCurrentView(item.id as View);
-                        if (window.innerWidth < 768) setIsSidebarOpen(false);
+                        setIsSidebarOpen(false);
                       }}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                         currentView === item.id
@@ -104,13 +113,12 @@ export const Dashboard = () => {
               </nav>
             </div>
           </motion.aside>
+          </>
         )}
       </AnimatePresence>
 
       <main
-        className={`transition-all duration-300 ${
-          isSidebarOpen ? 'md:ml-64' : 'ml-0'
-        } p-8 pt-16 md:pt-8`}
+        className="p-4 pt-16 md:p-8 md:pt-8 min-h-screen"
       >
         <AnimatePresence mode="wait">
           <motion.div
