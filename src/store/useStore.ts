@@ -186,25 +186,31 @@ export const useStore = create<StoreState>()(
         try {
           set({ loading: true, error: null });
           
-          if (navigator.onLine) {
+          // Try Supabase first, but always fallback to sample data
+          try {
             const { data, error } = await supabase
               .from('blocks')
               .select('*')
               .order('name');
             
-            if (error) throw error;
+            if (error) {
+              console.warn('Supabase error, using sample data:', error);
+              throw error;
+            }
             
             if (data) {
               set({ blocks: data });
               return;
             }
+          } catch (supabaseError) {
+            console.warn('Supabase not accessible, using sample data:', supabaseError);
           }
           
           // Fallback to sample data
           const sampleBlocks = generateSampleBlocks();
           set({ blocks: sampleBlocks });
         } catch (error) {
-          console.error('Error fetching blocks:', error);
+          console.warn('Using sample data due to fetch error:', error);
           // Use sample data as fallback
           const sampleBlocks = generateSampleBlocks();
           set({ blocks: sampleBlocks });
@@ -217,18 +223,24 @@ export const useStore = create<StoreState>()(
         try {
           set({ loading: true, error: null });
           
-          if (navigator.onLine) {
+          // Try Supabase first, but always fallback to sample data
+          try {
             const { data, error } = await supabase
               .from('rooms')
               .select('*')
               .order('name');
             
-            if (error) throw error;
+            if (error) {
+              console.warn('Supabase error, using sample data:', error);
+              throw error;
+            }
             
             if (data) {
               set({ rooms: data });
               return;
             }
+          } catch (supabaseError) {
+            console.warn('Supabase not accessible, using sample data:', supabaseError);
           }
           
           // Fallback to sample data
@@ -236,7 +248,7 @@ export const useStore = create<StoreState>()(
           const sampleRooms = generateSampleRooms(blocks);
           set({ rooms: sampleRooms });
         } catch (error) {
-          console.error('Error fetching rooms:', error);
+          console.warn('Using sample data due to fetch error:', error);
           // Use sample data as fallback
           const { blocks } = get();
           const sampleRooms = generateSampleRooms(blocks);
@@ -250,19 +262,25 @@ export const useStore = create<StoreState>()(
         try {
           set({ loading: true, error: null });
           
-          if (navigator.onLine) {
+          // Try Supabase first, but always fallback to sample data
+          try {
             const { data, error } = await supabase
               .from('reservations')
               .select('*')
               .order('start_time', { ascending: false });
             
-            if (error) throw error;
+            if (error) {
+              console.warn('Supabase error, using sample data:', error);
+              throw error;
+            }
             
             if (data) {
               set({ reservations: data, totalItems: data.length, lastSync: Date.now() });
               await offlineStorage.saveOfflineData('reservations', data);
               return;
             }
+          } catch (supabaseError) {
+            console.warn('Supabase not accessible, using sample data:', supabaseError);
           }
           
           // Try offline data
@@ -277,10 +295,20 @@ export const useStore = create<StoreState>()(
           if (rooms.length > 0) {
             const sampleReservations = generateSampleReservations(rooms);
             set({ reservations: sampleReservations, totalItems: sampleReservations.length });
+          } else {
+            // If no rooms yet, set empty reservations
+            set({ reservations: [], totalItems: 0 });
           }
         } catch (error) {
-          console.error('Error fetching reservations:', error);
-          set({ error: error instanceof Error ? error.message : 'Failed to fetch reservations' });
+          console.warn('Using sample data due to fetch error:', error);
+          // Don't set error state, just use sample data
+          const { rooms } = get();
+          if (rooms.length > 0) {
+            const sampleReservations = generateSampleReservations(rooms);
+            set({ reservations: sampleReservations, totalItems: sampleReservations.length });
+          } else {
+            set({ reservations: [], totalItems: 0 });
+          }
         } finally {
           set({ loading: false });
         }
