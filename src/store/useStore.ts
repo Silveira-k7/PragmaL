@@ -186,24 +186,26 @@ export const useStore = create<StoreState>()(
         try {
           set({ loading: true, error: null });
           
-          // Try Supabase first, but always fallback to sample data
-          try {
-            const { data, error } = await supabase
-              .from('blocks')
-              .select('*')
-              .order('name');
-            
-            if (error) {
-              console.warn('Supabase error, using sample data:', error);
-              throw error;
+          // Only try Supabase if explicitly enabled
+          if (import.meta.env.VITE_USE_SUPABASE === 'true') {
+            try {
+              const { data, error } = await supabase
+                .from('blocks')
+                .select('*')
+                .order('name');
+              
+              if (error) {
+                console.warn('Supabase error, using sample data:', error);
+                throw error;
+              }
+              
+              if (data) {
+                set({ blocks: data });
+                return;
+              }
+            } catch (supabaseError) {
+              console.warn('Supabase not accessible, using sample data:', supabaseError);
             }
-            
-            if (data) {
-              set({ blocks: data });
-              return;
-            }
-          } catch (supabaseError) {
-            console.warn('Supabase not accessible, using sample data:', supabaseError);
           }
           
           // Fallback to sample data
