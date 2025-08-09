@@ -31,7 +31,7 @@ export const AISchedulingChat = () => {
     {
       id: '1',
       type: 'ai',
-      content: 'Olá! Sou o Luciano, assistente de agendamentos do PRAGMA.\n\nPara criar um agendamento, informe:\n• Nome do professor\n• Disciplina\n• Bloco (C, H15, H06, H03)\n• Dia da semana\n• Horário\n• Número de semanas (padrão: 16)\n\nExemplo: "Prof. João Silva, Cálculo I, Bloco C, segunda-feira às 08:00, 16 semanas"',
+      content: 'Olá! Sou o Luciano, seu assistente inteligente de agendamentos do PRAGMA.\n\n🎯 Para criar um agendamento, me informe:\n• Nome do professor (Prof. João, Professor Ana, etc.)\n• Disciplina (Cálculo, Física, Programação, etc.)\n• Bloco (C, H15, H06, H03, A, B, D, E, F, G)\n• Dia da semana (segunda, terça, quarta, quinta, sexta)\n• Horário (08:00, 14:00, etc.)\n• Número de semanas (opcional, padrão: 16)\n\n💡 Exemplos de comandos:\n"Prof. João Silva vai dar Cálculo I no Bloco C, segunda-feira às 08:00, 16 semanas"\n"Professor Ana, Física, H15, terça 14:00"\n"Carlos Oliveira, Programação, Bloco A, quinta às 10:00"\n\n🤖 Sou muito inteligente e entendo várias formas de você falar!',
       timestamp: new Date()
     }
   ]);
@@ -45,7 +45,7 @@ export const AISchedulingChat = () => {
 
   // Otimização: usar apenas primeiras 100 salas de cada bloco para performance
   const optimizedRooms = useMemo(() => {
-    const roomsByBlock = new Map<string, Room[]>();
+    const roomsByBlock = new Map<string, any[]>();
     blocks.forEach(block => {
       const blockRooms = rooms.filter(r => r.block_id === block.id).slice(0, 100);
       roomsByBlock.set(block.id, blockRooms);
@@ -80,13 +80,37 @@ export const AISchedulingChat = () => {
     { start: '21:05', end: '21:50' }
   ];
 
+  // Mapeamento inteligente de dias da semana
   const diasSemana = {
-    'segunda': 1, 'segunda-feira': 1, 'seg': 1,
-    'terça': 2, 'terça-feira': 2, 'ter': 2, 'terca': 2,
-    'quarta': 3, 'quarta-feira': 3, 'qua': 3,
-    'quinta': 4, 'quinta-feira': 4, 'qui': 4,
-    'sexta': 5, 'sexta-feira': 5, 'sex': 5
+    'segunda': 1, 'segunda-feira': 1, 'seg': 1, '2': 1, 'segunda feira': 1,
+    'terça': 2, 'terça-feira': 2, 'ter': 2, 'terca': 2, '3': 2, 'terça feira': 2, 'terca-feira': 2,
+    'quarta': 3, 'quarta-feira': 3, 'qua': 3, '4': 3, 'quarta feira': 3,
+    'quinta': 4, 'quinta-feira': 4, 'qui': 4, '5': 4, 'quinta feira': 4,
+    'sexta': 5, 'sexta-feira': 5, 'sex': 5, '6': 5, 'sexta feira': 5
   };
+
+  // Lista expandida de disciplinas para reconhecimento inteligente
+  const disciplinasComuns = [
+    'cálculo', 'calculo', 'matemática', 'matematica', 'álgebra', 'algebra',
+    'física', 'fisica', 'química', 'quimica', 'biologia', 'geografia', 'história', 'historia',
+    'programação', 'programacao', 'informática', 'informatica', 'computação', 'computacao',
+    'estruturas de dados', 'banco de dados', 'redes', 'sistemas operacionais',
+    'engenharia de software', 'inteligência artificial', 'inteligencia artificial',
+    'estatística', 'estatistica', 'probabilidade', 'metodologia', 'pesquisa',
+    'português', 'portugues', 'inglês', 'ingles', 'espanhol', 'literatura',
+    'administração', 'administracao', 'gestão', 'gestao', 'marketing', 'economia',
+    'contabilidade', 'direito', 'psicologia', 'sociologia', 'filosofia',
+    'educação física', 'educacao fisica', 'artes', 'música', 'musica',
+    'eletrônica', 'eletronica', 'mecânica', 'mecanica', 'civil', 'elétrica', 'eletrica'
+  ];
+
+  // Padrões de nomes de professores
+  const padroesProfessor = [
+    /prof\.?\s*([a-záêçõàéíóúâôãç\s]+?)(?:\s*[,.]|\s*vai|\s*dará|\s*ensina|\s*de|\s*da|\s*do|\s*no|\s*na|\s*em|\s*$)/i,
+    /professor[a]?\s+([a-záêçõàéíóúâôãç\s]+?)(?:\s*[,.]|\s*vai|\s*dará|\s*ensina|\s*de|\s*da|\s*do|\s*no|\s*na|\s*em|\s*$)/i,
+    /([a-záêçõàéíóúâôãç\s]+?)\s*(?:vai dar|dará|ensina|leciona)/i,
+    /^([a-záêçõàéíóúâôãç\s]+?)\s*[,]/i
+  ];
 
   const findBestTimeSlot = (timeInput: string) => {
     const hour = parseInt(timeInput.split(':')[0]);
@@ -104,6 +128,157 @@ export const AISchedulingChat = () => {
     return nextDate;
   };
 
+  // Função inteligente para extrair informações
+  const extractInformation = (message: string, currentData: SchedulingData) => {
+    const lowerMessage = message.toLowerCase();
+    const newData = { ...currentData };
+
+    // 1. PROFESSOR - Múltiplos padrões
+    if (!newData.professor) {
+      for (const pattern of padroesProfessor) {
+        const match = message.match(pattern);
+        if (match && match[1]) {
+          let profName = match[1].trim();
+          // Limpar caracteres extras
+          profName = profName.replace(/[,.]$/, '');
+          if (profName.length > 2 && !disciplinasComuns.includes(profName.toLowerCase())) {
+            newData.professor = profName.startsWith('Prof') ? profName : `Prof. ${profName}`;
+            break;
+          }
+        }
+      }
+    }
+
+    // 2. DISCIPLINA - Busca inteligente
+    if (!newData.materia) {
+      // Primeiro, procurar disciplinas conhecidas
+      for (const disciplina of disciplinasComuns) {
+        if (lowerMessage.includes(disciplina)) {
+          newData.materia = disciplina.charAt(0).toUpperCase() + disciplina.slice(1);
+          break;
+        }
+      }
+      
+      // Se não encontrou, tentar padrões contextuais
+      if (!newData.materia) {
+        const materiaPatterns = [
+          /(?:de|da|do|disciplina|matéria|aula)\s+([a-záêçõàéíóúâôãç\s]+?)(?:\s*[,.]|\s*no|\s*na|\s*em|\s*bloco|\s*$)/i,
+          /(?:vai dar|dará|ensina|leciona)\s+([a-záêçõàéíóúâôãç\s]+?)(?:\s*[,.]|\s*no|\s*na|\s*em|\s*bloco|\s*$)/i,
+          /([a-záêçõàéíóúâôãç\s]+?)\s*(?:no bloco|na sala|em)/i
+        ];
+        
+        for (const pattern of materiaPatterns) {
+          const match = message.match(pattern);
+          if (match && match[1]) {
+            const materia = match[1].trim();
+            if (materia.length > 3 && !materia.includes('bloco') && !materia.includes('sala')) {
+              newData.materia = materia.charAt(0).toUpperCase() + materia.slice(1);
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // 3. BLOCO - Reconhecimento inteligente
+    if (!newData.bloco) {
+      const blocoPatterns = [
+        /bloco\s*([a-z]\d*|[a-z]|h\d+)/i,
+        /\b([a-z]\d+|h\d+)\b/i,
+        /\b(bloco\s*)?([a-z])\b(?!\w)/i
+      ];
+      
+      for (const pattern of blocoPatterns) {
+        const match = message.match(pattern);
+        if (match) {
+          let blocoName = (match[2] || match[1]).toUpperCase();
+          const foundBlock = blocks.find(b => 
+            b.name.toUpperCase().includes(blocoName) || 
+            b.name.toUpperCase() === blocoName ||
+            b.name.toUpperCase() === `BLOCO ${blocoName}`
+          );
+          if (foundBlock) {
+            newData.bloco = foundBlock.id;
+            break;
+          }
+        }
+      }
+    }
+
+    // 4. HORÁRIO - Múltiplos formatos
+    if (!newData.horario) {
+      const horarioPatterns = [
+        /(\d{1,2}):(\d{2})/,
+        /(\d{1,2})h(\d{2})?/,
+        /às?\s*(\d{1,2}):?(\d{2})?/i,
+        /(\d{1,2})\s*horas?/i,
+        /(\d{1,2})\s*da\s*(manhã|tarde|noite)/i
+      ];
+      
+      for (const pattern of horarioPatterns) {
+        const match = message.match(pattern);
+        if (match) {
+          let hour = match[1];
+          let minute = match[2] || '00';
+          
+          // Ajustar formato
+          hour = hour.padStart(2, '0');
+          minute = minute.padStart(2, '0');
+          
+          const timeString = `${hour}:${minute}`;
+          const matchingSlot = findBestTimeSlot(timeString);
+          if (matchingSlot) {
+            newData.horario = matchingSlot.start;
+            newData.duracao = matchingSlot.end;
+            break;
+          }
+        }
+      }
+    }
+
+    // 5. DIA DA SEMANA - Reconhecimento flexível
+    if (!newData.data) {
+      for (const [dia, numero] of Object.entries(diasSemana)) {
+        if (lowerMessage.includes(dia)) {
+          const proximaData = getNextDateForWeekday(numero);
+          newData.data = format(proximaData, 'yyyy-MM-dd');
+          newData.diaSemana = dia;
+          break;
+        }
+      }
+    }
+
+    // 6. SEMANAS - Números por extenso e dígitos
+    if (!newData.semanas) {
+      const semanasPatterns = [
+        /(\d+)\s*semanas?/i,
+        /(um|uma|dois|duas|três|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|catorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte)\s*semanas?/i
+      ];
+      
+      for (const pattern of semanasPatterns) {
+        const match = message.match(pattern);
+        if (match) {
+          if (match[1].match(/\d+/)) {
+            newData.semanas = parseInt(match[1]);
+          } else {
+            // Converter números por extenso
+            const numerosExtenso: { [key: string]: number } = {
+              'um': 1, 'uma': 1, 'dois': 2, 'duas': 2, 'três': 3, 'tres': 3,
+              'quatro': 4, 'cinco': 5, 'seis': 6, 'sete': 7, 'oito': 8,
+              'nove': 9, 'dez': 10, 'onze': 11, 'doze': 12, 'treze': 13,
+              'catorze': 14, 'quinze': 15, 'dezesseis': 16, 'dezessete': 17,
+              'dezoito': 18, 'dezenove': 19, 'vinte': 20
+            };
+            newData.semanas = numerosExtenso[match[1].toLowerCase()] || 16;
+          }
+          break;
+        }
+      }
+    }
+
+    return newData;
+  };
+
   const processMessage = async (message: string) => {
     setIsProcessing(true);
     
@@ -115,7 +290,7 @@ export const AISchedulingChat = () => {
       let newSchedulingData = { ...schedulingData };
 
       // Verificar se é confirmação ou cancelamento
-      if (lowerMessage.includes('confirmar') || lowerMessage.includes('sim') || lowerMessage.includes('ok')) {
+      if (lowerMessage.includes('confirmar') || lowerMessage.includes('sim') || lowerMessage.includes('ok') || lowerMessage.includes('confirma')) {
         const hasAllInfo = newSchedulingData.professor && 
                           newSchedulingData.materia && 
                           newSchedulingData.bloco && 
@@ -126,7 +301,7 @@ export const AISchedulingChat = () => {
           try {
             const blockRooms = optimizedRooms.get(newSchedulingData.bloco!) || [];
             if (blockRooms.length === 0) {
-              response = 'Não há salas disponíveis no bloco selecionado.\n\nPor favor, escolha outro bloco.';
+              response = '❌ Não há salas disponíveis no bloco selecionado.\n\nPor favor, escolha outro bloco (C, H15, H06, H03, A, B, D, E, F, G).';
             } else {
               const selectedRoom = newSchedulingData.sala 
                 ? blockRooms.find(r => r.id === newSchedulingData.sala) || blockRooms[0]
@@ -154,144 +329,32 @@ export const AISchedulingChat = () => {
               
               const blockName = blocks.find(b => b.id === newSchedulingData.bloco)?.name;
               
-              response = `✓ Agendamento criado com sucesso\n\n`;
-              response += `Professor: ${newSchedulingData.professor}\n`;
-              response += `Disciplina: ${newSchedulingData.materia}\n`;
-              response += `Local: ${blockName} - ${selectedRoom.name}\n`;
-              response += `Horário: ${newSchedulingData.horario} - ${newSchedulingData.duracao}\n`;
-              response += `Início: ${format(startDate, 'dd/MM/yyyy')}\n`;
-              response += `Total: ${weeks} aulas agendadas`;
+              response = `✅ Agendamento criado com sucesso!\n\n`;
+              response += `👨‍🏫 Professor: ${newSchedulingData.professor}\n`;
+              response += `📚 Disciplina: ${newSchedulingData.materia}\n`;
+              response += `🏢 Local: ${blockName} - ${selectedRoom.name}\n`;
+              response += `⏰ Horário: ${newSchedulingData.horario} - ${newSchedulingData.duracao}\n`;
+              response += `📅 Início: ${format(startDate, 'dd/MM/yyyy')}\n`;
+              response += `📊 Total: ${weeks} aulas agendadas\n\n`;
+              response += `🎉 Posso ajudar com mais algum agendamento?`;
               
               newSchedulingData = {};
               toast.success(`${weeks} aulas agendadas com sucesso!`);
             }
           } catch (error) {
             console.error('Erro ao criar agendamento:', error);
-            response = 'Erro ao criar o agendamento.\n\nTente novamente ou verifique os dados informados.';
+            response = '❌ Erro ao criar o agendamento.\n\nTente novamente ou verifique os dados informados.';
             toast.error('Erro ao criar agendamento');
           }
         } else {
-          response = 'Informações incompletas.\n\nPor favor, forneça todos os dados necessários antes de confirmar.';
+          response = '⚠️ Informações incompletas para confirmar.\n\nPreciso de todos os dados antes de criar o agendamento.';
         }
-      } else if (lowerMessage.includes('cancelar') || lowerMessage.includes('não') || lowerMessage.includes('nao')) {
+      } else if (lowerMessage.includes('cancelar') || lowerMessage.includes('não') || lowerMessage.includes('nao') || lowerMessage.includes('desistir')) {
         newSchedulingData = {};
-        response = 'Agendamento cancelado.\n\nPosso ajudar com um novo agendamento?';
+        response = '❌ Agendamento cancelado.\n\n😊 Posso ajudar com um novo agendamento?';
       } else {
-        // Extrair informações da mensagem
-        
-        // Professor
-        if (!newSchedulingData.professor) {
-          const profMatches = [
-            message.match(/prof\.?\s*([a-záêçõ\s]+?)(?:\s*,|\s*de|\s*-|\s*$)/i),
-            message.match(/professor\s+([a-záêçõ\s]+?)(?:\s*,|\s*de|\s*-|\s*$)/i),
-            message.match(/([a-záêçõ\s]+?)\s*(?:vai dar|dará|ensina)/i)
-          ];
-          
-          for (const match of profMatches) {
-            if (match) {
-              const profName = match[1].trim();
-              if (profName.length > 2) {
-                newSchedulingData.professor = profName.startsWith('Prof') ? profName : `Prof. ${profName}`;
-                break;
-              }
-            }
-          }
-        }
-
-        // Matéria
-        if (!newSchedulingData.materia) {
-          const materias = [
-            'cálculo', 'álgebra', 'física', 'química', 'programação', 'estruturas de dados',
-            'banco de dados', 'engenharia de software', 'redes', 'inteligência artificial',
-            'sistemas operacionais', 'estatística', 'metodologia', 'gestão', 'marketing',
-            'contabilidade', 'administração', 'direito', 'psicologia', 'logística',
-            'matemática', 'português', 'inglês', 'história', 'geografia', 'biologia'
-          ];
-          
-          for (const materia of materias) {
-            if (lowerMessage.includes(materia)) {
-              newSchedulingData.materia = materia.charAt(0).toUpperCase() + materia.slice(1);
-              break;
-            }
-          }
-          
-          if (!newSchedulingData.materia) {
-            const materiaMatch = message.match(/(?:de|da|do)\s+([a-záêçõ\s]+?)(?:\s*,|\s*no|\s*em|\s*$)/i);
-            if (materiaMatch) {
-              const materia = materiaMatch[1].trim();
-              if (materia.length > 3 && !materia.includes('bloco')) {
-                newSchedulingData.materia = materia.charAt(0).toUpperCase() + materia.slice(1);
-              }
-            }
-          }
-        }
-
-        // Bloco
-        if (!newSchedulingData.bloco) {
-          const blocoMatches = [
-            message.match(/bloco\s*([ch]\d*)/i),
-            message.match(/\b([ch]\d+)\b/i),
-            message.match(/\b(h\d+)\b/i)
-          ];
-          
-          for (const match of blocoMatches) {
-            if (match) {
-              const blocoName = match[1].toUpperCase();
-              const foundBlock = blocks.find(b => 
-                b.name.toUpperCase().includes(blocoName) || 
-                b.name.toUpperCase() === blocoName
-              );
-              if (foundBlock) {
-                newSchedulingData.bloco = foundBlock.id;
-                break;
-              }
-            }
-          }
-        }
-
-        // Horário
-        if (!newSchedulingData.horario) {
-          const horarioMatches = [
-            message.match(/(\d{1,2}):(\d{2})/),
-            message.match(/(\d{1,2})h(\d{2})?/),
-            message.match(/às?\s*(\d{1,2}):?(\d{2})?/i)
-          ];
-          
-          for (const match of horarioMatches) {
-            if (match) {
-              const hour = match[1].padStart(2, '0');
-              const minute = match[2] ? match[2].padStart(2, '0') : '00';
-              const timeString = `${hour}:${minute}`;
-              
-              const matchingSlot = findBestTimeSlot(timeString);
-              if (matchingSlot) {
-                newSchedulingData.horario = matchingSlot.start;
-                newSchedulingData.duracao = matchingSlot.end;
-                break;
-              }
-            }
-          }
-        }
-
-        // Dia da semana e data
-        if (!newSchedulingData.data) {
-          for (const [dia, numero] of Object.entries(diasSemana)) {
-            if (lowerMessage.includes(dia)) {
-              const proximaData = getNextDateForWeekday(numero);
-              newSchedulingData.data = format(proximaData, 'yyyy-MM-dd');
-              newSchedulingData.diaSemana = dia;
-              break;
-            }
-          }
-        }
-
-        // Semanas
-        if (!newSchedulingData.semanas) {
-          const semanasMatch = message.match(/(\d+)\s*semanas?/i);
-          if (semanasMatch) {
-            newSchedulingData.semanas = parseInt(semanasMatch[1]);
-          }
-        }
+        // Extrair informações da mensagem usando IA melhorada
+        newSchedulingData = extractInformation(message, newSchedulingData);
 
         // Verificar se temos todas as informações necessárias
         const hasAllInfo = newSchedulingData.professor && 
@@ -304,27 +367,35 @@ export const AISchedulingChat = () => {
           const blockName = blocks.find(b => b.id === newSchedulingData.bloco)?.name;
           const semanas = newSchedulingData.semanas || 16;
           
-          response = 'Dados coletados com sucesso:\n\n';
-          response += `Professor: ${newSchedulingData.professor}\n`;
-          response += `Disciplina: ${newSchedulingData.materia}\n`;
-          response += `Bloco: ${blockName}\n`;
-          response += `Horário: ${newSchedulingData.horario} - ${newSchedulingData.duracao}\n`;
-          response += `Início: ${format(new Date(newSchedulingData.data), 'dd/MM/yyyy')} (${newSchedulingData.diaSemana})\n`;
-          response += `Duração: ${semanas} semanas\n\n`;
-          response += 'Digite "confirmar" para criar os agendamentos.';
+          response = '🎯 Perfeito! Coletei todas as informações:\n\n';
+          response += `👨‍🏫 Professor: ${newSchedulingData.professor}\n`;
+          response += `📚 Disciplina: ${newSchedulingData.materia}\n`;
+          response += `🏢 Bloco: ${blockName}\n`;
+          response += `⏰ Horário: ${newSchedulingData.horario} - ${newSchedulingData.duracao}\n`;
+          response += `📅 Início: ${format(new Date(newSchedulingData.data), 'dd/MM/yyyy')} (${newSchedulingData.diaSemana})\n`;
+          response += `📊 Duração: ${semanas} semanas\n\n`;
+          response += '✅ Digite "confirmar" para criar os agendamentos ou "cancelar" para desistir.';
         } else {
-          // Solicitar informações faltantes
+          // Solicitar informações faltantes de forma inteligente
           const missing = [];
-          if (!newSchedulingData.professor) missing.push('Nome do professor');
-          if (!newSchedulingData.materia) missing.push('Disciplina');
-          if (!newSchedulingData.bloco) missing.push('Bloco (C, H15, H06, H03)');
-          if (!newSchedulingData.horario) missing.push('Horário (ex: 08:00, 14:00)');
-          if (!newSchedulingData.data) missing.push('Dia da semana');
+          if (!newSchedulingData.professor) missing.push('👨‍🏫 Nome do professor');
+          if (!newSchedulingData.materia) missing.push('📚 Disciplina');
+          if (!newSchedulingData.bloco) missing.push('🏢 Bloco');
+          if (!newSchedulingData.horario) missing.push('⏰ Horário');
+          if (!newSchedulingData.data) missing.push('📅 Dia da semana');
           
           if (missing.length > 0) {
-            response = 'Informações necessárias:\n\n';
+            response = '🤔 Ainda preciso de algumas informações:\n\n';
             response += missing.map(item => `• ${item}`).join('\n');
-            response += '\n\nExemplo: "Prof. Ana Silva, Cálculo I, Bloco C, segunda-feira às 08:00, 16 semanas"';
+            response += '\n\n💡 Exemplo completo:\n';
+            response += '"Prof. Ana Silva vai dar Cálculo I no Bloco C, segunda-feira às 08:00, 16 semanas"';
+            
+            // Dar dicas específicas baseadas no que já foi coletado
+            if (newSchedulingData.professor && !newSchedulingData.materia) {
+              response += '\n\n🎯 Já tenho o professor! Agora me diga qual disciplina ele vai ensinar.';
+            } else if (newSchedulingData.materia && !newSchedulingData.bloco) {
+              response += '\n\n🎯 Ótimo! Agora preciso saber em qual bloco (C, H15, H06, H03, A, B, D, E, F, G).';
+            }
           }
         }
       }
@@ -345,7 +416,7 @@ export const AISchedulingChat = () => {
       const errorMessage: Message = {
         id: Date.now().toString(),
         type: 'ai',
-        content: 'Erro no processamento da solicitação.\n\nTente novamente.',
+        content: '❌ Erro no processamento da solicitação.\n\n🔄 Tente novamente com um comando mais simples.',
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -381,14 +452,20 @@ export const AISchedulingChat = () => {
   return (
     <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden h-[700px] flex flex-col">
       {/* Header */}
-      <div className="bg-gray-50 border-b border-gray-200 p-4">
+      <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200 p-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-            <Bot className="w-5 h-5 text-blue-600" />
+          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+            <Bot className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="font-semibold text-gray-900">Luciano (LU)</h2>
-            <p className="text-sm text-gray-500">Assistente de Agendamentos</p>
+            <h2 className="font-semibold text-gray-900">Luciano (LU) - IA Inteligente</h2>
+            <p className="text-sm text-gray-500">Assistente de Agendamentos com IA Avançada</p>
+          </div>
+          <div className="ml-auto">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs text-green-600 font-medium">Online</span>
+            </div>
           </div>
         </div>
       </div>
@@ -406,7 +483,7 @@ export const AISchedulingChat = () => {
             >
               <div className={`max-w-[75%] rounded-lg p-3 shadow-sm ${
                 message.type === 'user' 
-                  ? 'bg-blue-600 text-white' 
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white' 
                   : 'bg-white text-gray-800 border border-gray-200'
               }`}>
                 <div className="whitespace-pre-wrap text-sm leading-relaxed">
@@ -431,11 +508,11 @@ export const AISchedulingChat = () => {
             <div className="bg-white rounded-lg p-3 shadow-sm border border-gray-200">
               <div className="flex items-center gap-2">
                 <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                 </div>
-                <span className="text-sm text-gray-500">Processando...</span>
+                <span className="text-sm text-gray-500">Luciano está pensando...</span>
               </div>
             </div>
           </motion.div>
@@ -452,7 +529,7 @@ export const AISchedulingChat = () => {
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Digite sua mensagem..."
+              placeholder="Digite sua mensagem para o Luciano..."
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
               rows={1}
               disabled={isProcessing}
@@ -467,18 +544,18 @@ export const AISchedulingChat = () => {
           <button
             onClick={handleSendMessage}
             disabled={!inputMessage.trim() || isProcessing}
-            className="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-3 rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex-shrink-0"
           >
             <Send className="w-5 h-5" />
           </button>
         </div>
         
         <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-          <span>Blocos: C, H15, H06, H03</span>
+          <span>🏢 Blocos: C, H15, H06, H03, A, B, D, E, F, G</span>
           <span>•</span>
-          <span>Horários: 07:10-21:50</span>
+          <span>⏰ Horários: 07:10-21:50</span>
           <span>•</span>
-          <span>Padrão: 16 semanas</span>
+          <span>📊 Padrão: 16 semanas</span>
         </div>
       </div>
     </div>

@@ -45,6 +45,7 @@ interface StoreState {
   addReservation: (reservation: Omit<Reservation, 'id'>) => Promise<void>;
   addSemesterReservations: (reservation: Omit<Reservation, 'id'>, weeks: number) => Promise<void>;
   deleteReservation: (id: string) => Promise<void>;
+  clearAllReservations: () => Promise<void>;
   
   // Helper functions
   getRoomsByBlock: (blockId: string) => Room[];
@@ -534,6 +535,34 @@ export const useStore = create<StoreState>()(
           console.error('Error deleting reservation:', error);
           set({ 
             error: error instanceof Error ? error.message : 'Failed to delete reservation',
+            loading: false 
+          });
+        }
+      },
+
+      clearAllReservations: async () => {
+        try {
+          set({ loading: true, error: null });
+          
+          if (import.meta.env.VITE_USE_SUPABASE === 'true' && navigator.onLine) {
+            const { error } = await supabase
+              .from('reservations')
+              .delete()
+              .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all records
+            
+            if (error) throw error;
+          }
+
+          // Clear all reservations but keep blocks and rooms
+          set({ 
+            reservations: [],
+            totalItems: 0,
+            loading: false 
+          });
+        } catch (error) {
+          console.error('Error clearing all reservations:', error);
+          set({ 
+            error: error instanceof Error ? error.message : 'Failed to clear all reservations',
             loading: false 
           });
         }
