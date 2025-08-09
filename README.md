@@ -125,6 +125,25 @@ VITE_SUPABASE_URL=sua_url_supabase
 VITE_SUPABASE_ANON_KEY=sua_chave_supabase
 ```
 
+### **Variáveis de Ambiente**
+
+O sistema utiliza as seguintes variáveis de ambiente:
+
+```bash
+# Configuração do Supabase
+VITE_SUPABASE_URL=https://seu-projeto.supabase.co
+VITE_SUPABASE_ANON_KEY=sua_chave_anonima_supabase
+
+# Controle de uso do Supabase
+VITE_USE_SUPABASE=true   # true: usa Supabase, false: usa apenas dados de exemplo
+```
+
+**Importante**: 
+- Para desenvolvimento local ou demonstração, use `VITE_USE_SUPABASE=false`
+- Para produção com banco real, use `VITE_USE_SUPABASE=true`
+
+### **Modo Desenvolvimento**
+
 4. **Execute o projeto**
 ```bash
 npm run dev
