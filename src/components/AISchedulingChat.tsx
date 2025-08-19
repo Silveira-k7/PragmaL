@@ -32,6 +32,7 @@ export const AISchedulingChat = () => {
       id: '1',
       type: 'ai',
       content: 'Olá! Sou o Luciano, seu assistente inteligente de agendamentos do PRAGMA.\n\n🎯 Para criar um agendamento, me informe:\n• Nome do professor (Prof. João, Professor Ana, etc.)\n• Disciplina (Cálculo, Física, Programação, etc.)\n• Bloco (C, H15, H06, H03, A, B, D, E, F, G)\n• Dia da semana (segunda, terça, quarta, quinta, sexta)\n• Horário (08:00, 14:00, etc.)\n• Número de semanas (opcional, padrão: 16)\n\n💡 Exemplos de comandos:\n"Prof. João Silva vai dar Cálculo I no Bloco C, segunda-feira às 08:00, 16 semanas"\n"Professor Ana, Física, H15, terça 14:00"\n"Carlos Oliveira, Programação, Bloco A, quinta às 10:00"\n\n🤖 Sou muito inteligente e entendo várias formas de você falar!',
+      content: '👋 Olá! Sou o Luciano, seu assistente ultra-inteligente!\n\n🚀 **MODO RÁPIDO ATIVADO** - Entendo você de qualquer jeito!\n\n💡 **Exemplos super simples:**\n• "João, Cálculo, C, segunda 8h"\n• "Prof Ana, Física, H15, terça 14h, 20 semanas"\n• "Carlos vai dar Programação quinta às 10h"\n\n✨ **Sou MUITO inteligente:**\n• Entendo português natural\n• Corrijo pequenos erros\n• Resposta em segundos\n• Reconheço 50+ disciplinas\n\n🎯 **Fale do seu jeito que eu entendo!**',
       timestamp: new Date()
     }
   ]);
