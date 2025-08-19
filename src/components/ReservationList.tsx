@@ -29,7 +29,6 @@ export const ReservationList = () => {
     endDate: '',
   });
   const [loading, setLoading] = useState(false);
-  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
 
   // Memoized filtered reservations para performance
   const filteredReservations = useMemo(() => {
@@ -92,12 +91,16 @@ export const ReservationList = () => {
   };
 
   const handleDeleteAllReservations = async () => {
-    try {
-      await clearAllReservations();
-      setShowDeleteAllModal(false);
-      toast.success('Todos os agendamentos foram excluídos com sucesso!');
-    } catch (error) {
-      toast.error('Erro ao excluir agendamentos');
+    if (window.confirm(`Tem certeza que deseja excluir TODOS os ${totalItems} agendamentos?\n\n⚠️ Esta ação não pode ser desfeita!\n✅ Blocos e salas serão mantidos.`)) {
+      try {
+        setLoading(true);
+        await clearAllReservations();
+        toast.success(`${totalItems} agendamentos excluídos com sucesso!`);
+      } catch (error) {
+        toast.error('Erro ao excluir agendamentos');
+      } finally {
+        setLoading(false);
+      }
     }
   };
   const clearFilters = () => {
@@ -147,7 +150,7 @@ export const ReservationList = () => {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => setShowDeleteAllModal(true)}
+              onClick={handleDeleteAllReservations}
               className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
             >
               <Trash2 className="w-4 h-4" />
@@ -427,64 +430,6 @@ export const ReservationList = () => {
         </div>
       </motion.div>
 
-      {/* Modal de Confirmação para Excluir Todos */}
-      <AnimatePresence>
-        {showDeleteAllModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowDeleteAllModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                  <AlertTriangle className="w-6 h-6 text-red-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Excluir Todos os Agendamentos</h3>
-                  <p className="text-sm text-gray-500">Esta ação não pode ser desfeita</p>
-                </div>
-              </div>
-              
-              <div className="mb-6">
-                <p className="text-gray-700 mb-2">
-                  Você está prestes a excluir <strong className="text-red-600">{totalItems} agendamentos</strong>.
-                </p>
-                <p className="text-gray-600 text-sm">
-                  ⚠️ Os blocos e salas serão mantidos, apenas os agendamentos serão removidos.
-                </p>
-              </div>
-              
-              <div className="flex gap-3">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleDeleteAllReservations}
-                  className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors font-medium"
-                >
-                  Sim, Excluir Todos
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setShowDeleteAllModal(false)}
-                  className="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-                >
-                  Cancelar
-                </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

@@ -283,7 +283,7 @@ export const AISchedulingChat = () => {
     setIsProcessing(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, 400));
       
       const lowerMessage = message.toLowerCase();
       let response = '';
