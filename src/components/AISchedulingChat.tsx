@@ -340,12 +340,10 @@ export const AISchedulingChat = () => {
               response += `🎉 Posso ajudar com mais algum agendamento?`;
               
               newSchedulingData = {};
-              toast.success(`${weeks} aulas agendadas com sucesso!`);
             }
           } catch (error) {
             console.error('Erro ao criar agendamento:', error);
             response = '❌ Erro ao criar o agendamento.\n\nTente novamente ou verifique os dados informados.';
-            toast.error('Erro ao criar agendamento');
           }
         } else {
           response = '⚠️ Informações incompletas para confirmar.\n\nPreciso de todos os dados antes de criar o agendamento.';

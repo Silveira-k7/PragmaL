@@ -436,7 +436,7 @@ export const useStore = create<StoreState>()(
             id: `res-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
           };
 
-          if (navigator.onLine) {
+          if (import.meta.env.VITE_USE_SUPABASE === 'true' && navigator.onLine) {
             const { error } = await supabase
               .from('reservations')
               .insert([newReservation]);
@@ -453,8 +453,13 @@ export const useStore = create<StoreState>()(
             totalItems: updatedReservations.length,
             loading: false 
           });
+          
+          const toast = (await import('react-hot-toast')).default;
+          toast.success('Agendamento criado com sucesso!');
         } catch (error) {
           console.error('Error adding reservation:', error);
+          const toast = (await import('react-hot-toast')).default;
+          toast.error('Erro ao criar agendamento');
           set({ 
             error: error instanceof Error ? error.message : 'Failed to add reservation',
             loading: false 
@@ -468,24 +473,24 @@ export const useStore = create<StoreState>()(
           
           const reservations: Reservation[] = [];
           const startDate = new Date(reservationData.start_time);
+          const endDate = new Date(reservationData.end_time);
           
           for (let week = 0; week < weeks; week++) {
             const weekDate = new Date(startDate);
             weekDate.setDate(startDate.getDate() + (week * 7));
             
-            const startTime = new Date(weekDate);
-            const endTime = new Date(reservationData.end_time);
-            endTime.setDate(weekDate.getDate());
+            const weekEndDate = new Date(endDate);
+            weekEndDate.setDate(endDate.getDate() + (week * 7));
             
             reservations.push({
               ...reservationData,
               id: `res-${Date.now()}-${week}-${Math.random().toString(36).substr(2, 9)}`,
-              start_time: startTime.toISOString(),
-              end_time: endTime.toISOString()
+              start_time: weekDate.toISOString(),
+              end_time: weekEndDate.toISOString()
             });
           }
 
-          if (navigator.onLine) {
+          if (import.meta.env.VITE_USE_SUPABASE === 'true' && navigator.onLine) {
             const { error } = await supabase
               .from('reservations')
               .insert(reservations);
@@ -502,8 +507,14 @@ export const useStore = create<StoreState>()(
             totalItems: updatedReservations.length,
             loading: false 
           });
+          
+          // Importar toast se não estiver disponível
+          const toast = (await import('react-hot-toast')).default;
+          toast.success(`${weeks} agendamentos criados com sucesso!`);
         } catch (error) {
           console.error('Error adding semester reservations:', error);
+          const toast = (await import('react-hot-toast')).default;
+          toast.error('Erro ao criar agendamentos semestrais');
           set({ 
             error: error instanceof Error ? error.message : 'Failed to add semester reservations',
             loading: false 
