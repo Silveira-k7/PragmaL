@@ -324,7 +324,7 @@ export const useStore = create<StoreState>()(
             name
           };
 
-          if (navigator.onLine) {
+          if (import.meta.env.VITE_USE_SUPABASE === 'true' && navigator.onLine) {
             const { error } = await supabase
               .from('blocks')
               .insert([newBlock]);
@@ -353,7 +353,7 @@ export const useStore = create<StoreState>()(
             name
           };
 
-          if (navigator.onLine) {
+          if (import.meta.env.VITE_USE_SUPABASE === 'true' && navigator.onLine) {
             const { error } = await supabase
               .from('rooms')
               .insert([newRoom]);
@@ -376,7 +376,7 @@ export const useStore = create<StoreState>()(
         try {
           set({ loading: true, error: null });
           
-          if (navigator.onLine) {
+          if (import.meta.env.VITE_USE_SUPABASE === 'true' && navigator.onLine) {
             const { error } = await supabase
               .from('blocks')
               .delete()
@@ -404,7 +404,7 @@ export const useStore = create<StoreState>()(
         try {
           set({ loading: true, error: null });
           
-          if (navigator.onLine) {
+          if (import.meta.env.VITE_USE_SUPABASE === 'true' && navigator.onLine) {
             const { error } = await supabase
               .from('rooms')
               .delete()

@@ -23,7 +23,7 @@ export const BlockList = () => {
   const handleAddBlock = (e: React.FormEvent) => {
     e.preventDefault();
     if (newBlockName.trim()) {
-      addBlock(newBlockName);
+      addBlock(newBlockName.trim());
       setNewBlockName('');
       toast.success('Bloco adicionado com sucesso!');
     }
@@ -32,8 +32,9 @@ export const BlockList = () => {
   const handleAddRoom = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedBlock && newRoomName.trim()) {
-      addRoom(selectedBlock, newRoomName);
+      addRoom(selectedBlock, newRoomName.trim());
       setNewRoomName('');
+      setSelectedBlock(null);
       toast.success('Sala adicionada com sucesso!');
     }
   };
